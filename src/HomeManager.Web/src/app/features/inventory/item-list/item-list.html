@@ -1,0 +1,43 @@
+<div class="container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>🎉 Welcome to HomeManager!</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p>Logged in as: <strong>{{ userEmail }}</strong></p>
+
+      <div *ngIf="loading" class="loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading your data...</p>
+      </div>
+
+      <div *ngIf="!loading && error" class="error">
+        ❌ Error: {{ error }}
+      </div>
+
+      <div *ngIf="!loading && !error">
+        <h3>Your Households ({{ households.length }})</h3>
+        <ul *ngIf="households.length > 0">
+          <li *ngFor="let h of households">
+            {{ h.name }} - Code: {{ h.inviteCode }}
+          </li>
+        </ul>
+        <p *ngIf="households.length === 0">
+          No households yet. Create one!
+        </p>
+
+        <h3>Your Items ({{ items.length }})</h3>
+        <p *ngIf="items.length === 0">
+          No items yet. Start your inventory!
+        </p>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button color="warn" (click)="logout()">
+        Logout
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>

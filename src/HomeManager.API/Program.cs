@@ -45,7 +45,7 @@ try
     builder.Services.AddDatabaseConfiguration(builder.Configuration);
 
     // CORS
-    builder.Services.AddCorsConfiguration();
+    builder.Services.AddCorsConfiguration(builder.Configuration);
 
     // Authentication & Authorization
     builder.Services.AddAuthenticationConfiguration(builder.Configuration);

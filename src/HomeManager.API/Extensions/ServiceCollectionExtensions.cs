@@ -111,18 +111,21 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddCorsConfiguration(this IServiceCollection services)
+    public static IServiceCollection AddCorsConfiguration(
+        this IServiceCollection services,
+        IConfiguration configuration
+    )
     {
+        var origins =
+            configuration["AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            ?? new[] { "http://localhost:4200" };
+
         services.AddCors(options =>
         {
             options.AddPolicy(
                 "AllowAngular",
                 policy =>
-                    policy
-                        .WithOrigins("http://localhost:4200") // Angular dev
-                        .AllowAnyHeader()
-                        .AllowAnyMethod()
-                        .AllowCredentials()
+                    policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
             );
         });
 

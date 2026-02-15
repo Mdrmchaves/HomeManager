@@ -13,8 +13,8 @@ export class SupabaseService {
 
   constructor() {
     this.supabase = createClient(
-      environment.supabase.url,
-      environment.supabase.anonKey
+      environment.supabase_url,
+      environment.supabase_anonKey
     );
 
     // Carrega sessão existente
@@ -98,7 +98,7 @@ export class SupabaseService {
   async deleteItemPhoto(photoUrl: string) {
     // Extrai o path do URL
     const path = photoUrl.split('/item-photos/')[1];
-    
+
     const { error } = await this.supabase.storage
       .from('item-photos')
       .remove([`items/${path}`]);

@@ -29,9 +29,10 @@ try
     Log.Information("Starting HomeManager API...");
 
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    builder.WebHost.UseUrls($"http://*:{port}");
 
     var builder = WebApplication.CreateBuilder(args);
+
+    builder.WebHost.UseUrls($"http://*:{port}");
 
     // Use Serilog for logging
     builder.Host.UseSerilog();

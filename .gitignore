@@ -76,3 +76,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# Angular environments
+src/environments/environment.prod.ts
+src/environments/environment.development.ts

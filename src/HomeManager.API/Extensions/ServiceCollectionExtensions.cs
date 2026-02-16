@@ -41,75 +41,36 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddAuthenticationConfiguration(
-        this IServiceCollection services,
-        IConfiguration configuration
-    )
-    {
-        var supabaseUrl =
-            configuration["Supabase:Url"]
-            ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
-            ?? throw new InvalidOperationException("Supabase URL not configured");
+public static IServiceCollection AddAuthenticationConfiguration(this IServiceCollection services, IConfiguration configuration)
+{
+    // Try multiple sources
+    var supabaseUrl = configuration["Supabase:Url"] 
+                   ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+                   ?? throw new InvalidOperationException("Supabase URL not configured");
 
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(options =>
+    // Remove trailing slash if exists
+    supabaseUrl = supabaseUrl.TrimEnd('/');
+
+    Console.WriteLine($"🔧 Using Supabase URL: {supabaseUrl}"); // DEBUG
+
+    services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            var issuer = $"{supabaseUrl}/auth/v1";
+            Console.WriteLine($"🔧 Configured Issuer: {issuer}"); // DEBUG
+
+            options.Authority = issuer;
+            
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                options.Authority = $"{supabaseUrl}/auth/v1";
-
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    ValidateIssuer = true,
-                    ValidIssuer = $"{supabaseUrl}/auth/v1",
-                    ValidateAudience = false,
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero,
-                    RequireSignedTokens = true,
-                };
-
-                options.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-                    $"{supabaseUrl}/auth/v1/.well-known/openid-configuration",
-                    new OpenIdConnectConfigurationRetriever(),
-                    new HttpDocumentRetriever()
-                );
-
-                options.RequireHttpsMetadata = true;
-
-                options.Events = new JwtBearerEvents
-                {
-                    OnAuthenticationFailed = context =>
-                    {
-                        Console.WriteLine($"❌ Auth failed: {context.Exception.Message}");
-                        if (context.Exception.InnerException != null)
-                        {
-                            Console.WriteLine(
-                                $"   Inner: {context.Exception.InnerException.Message}"
-                            );
-                        }
-                        return Task.CompletedTask;
-                    },
-                    OnTokenValidated = context =>
-                    {
-                        Console.WriteLine("✅ Token validated successfully!");
-                        var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}");
-                        Console.WriteLine(
-                            $"📋 Claims: {string.Join(", ", claims ?? Array.Empty<string>())}"
-                        );
-                        return Task.CompletedTask;
-                    },
-                    OnMessageReceived = context =>
-                    {
-                        Console.WriteLine("📨 JWT token received");
-                        return Task.CompletedTask;
-                    },
-                };
-            });
-
-        services.AddAuthorization();
-
-        return services;
-    }
+                ValidateIssuerSigningKey = true,
+                ValidateIssuer = true,
+                ValidIssuer = issuer, // ← IMPORTANTE
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero,
+                RequireSignedTokens = true
+            };
 
     public static IServiceCollection AddCorsConfiguration(
         this IServiceCollection services,

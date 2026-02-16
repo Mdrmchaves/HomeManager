@@ -44,7 +44,6 @@ __screenshots__/
 Thumbs.db
 
 # Angular environments
-src/environments/environment.prod.ts
 src/environments/environment.development.ts
 
 .env

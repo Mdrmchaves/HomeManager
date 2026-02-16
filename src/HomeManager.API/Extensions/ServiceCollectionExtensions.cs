@@ -32,11 +32,22 @@ public static class ServiceCollectionExtensions
     )
     {
         var connectionString =
-            configuration.GetConnectionString("DefaultConnection")
-            ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+            Environment.GetEnvironmentVariable("DATABASE_URL")
+            ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString));
+        Console.WriteLine($"🔧 Using DB: {connectionString.Substring(0, 30)}..."); // Show first 30 chars only
+
+        services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseNpgsql(
+                connectionString,
+                npgsqlOptions =>
+                {
+                    npgsqlOptions.CommandTimeout(60);
+                    npgsqlOptions.EnableRetryOnFailure(3);
+                }
+            )
+        );
 
         return services;
     }
@@ -46,30 +57,31 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration
     )
     {
+        // FIRST: Try environment variable (Render/Railway use this)
         var supabaseUrl =
-            configuration["Supabase:Url"]
-            ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+            Environment.GetEnvironmentVariable("SUPABASE_URL")
+            ?? configuration["Supabase:Url"]
             ?? throw new InvalidOperationException("Supabase URL not configured");
 
-        // Remove trailing slash if exists
+        // Remove trailing slash
         supabaseUrl = supabaseUrl.TrimEnd('/');
 
-        Console.WriteLine($"🔧 Using Supabase URL: {supabaseUrl}"); // DEBUG
+        Console.WriteLine($"🔧 Using Supabase URL: {supabaseUrl}");
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
                 var issuer = $"{supabaseUrl}/auth/v1";
-                Console.WriteLine($"🔧 Configured Issuer: {issuer}"); // DEBUG
+                Console.WriteLine($"🔧 Configured Issuer: {issuer}");
 
-                options.Authority = $"{supabaseUrl}/auth/v1";
+                options.Authority = issuer;
 
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
                     ValidateIssuer = true,
-                    ValidIssuer = $"{supabaseUrl}/auth/v1",
+                    ValidIssuer = issuer,
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero,
@@ -89,26 +101,11 @@ public static class ServiceCollectionExtensions
                     OnAuthenticationFailed = context =>
                     {
                         Console.WriteLine($"❌ Auth failed: {context.Exception.Message}");
-                        if (context.Exception.InnerException != null)
-                        {
-                            Console.WriteLine(
-                                $"   Inner: {context.Exception.InnerException.Message}"
-                            );
-                        }
                         return Task.CompletedTask;
                     },
                     OnTokenValidated = context =>
                     {
                         Console.WriteLine("✅ Token validated successfully!");
-                        var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}");
-                        Console.WriteLine(
-                            $"📋 Claims: {string.Join(", ", claims ?? Array.Empty<string>())}"
-                        );
-                        return Task.CompletedTask;
-                    },
-                    OnMessageReceived = context =>
-                    {
-                        Console.WriteLine("📨 JWT token received");
                         return Task.CompletedTask;
                     },
                 };

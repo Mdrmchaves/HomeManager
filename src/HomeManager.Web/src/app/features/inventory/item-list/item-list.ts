@@ -28,11 +28,11 @@ import { InventoryItem } from '../../../core/models/inventory-item.model';
 })
 export class ItemListComponent implements OnChanges {
   @Input() households: Household[] = [];
-  
+
   loading = true;
   items: InventoryItem[] = [];
   error = '';
-  
+
   selectedHouseholdName = '';
 
   deletingId: string | null = null;

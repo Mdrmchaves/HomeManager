@@ -21,6 +21,7 @@ export interface CreateItemRequest {
   name: string;
   description?: string;
   value?: number;
+  photoUrl?: string;
   location?: string;
   destination?: string;
   ownerId?: string;

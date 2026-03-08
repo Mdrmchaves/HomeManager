@@ -54,7 +54,7 @@ export class LoginComponent {
       await this.supabase.signIn(email, password);
       
       // Redireciona para dashboard
-      this.router.navigate(['/inventory']);
+      this.router.navigate(['/dashboard']);
     } catch (error: any) {
       this.errorMessage = error.message || 'Erro ao fazer login';
       console.error('Login error:', error);

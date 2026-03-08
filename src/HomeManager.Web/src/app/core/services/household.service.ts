@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Household, CreateHouseholdRequest } from '../models/household.model';
+import { ApiResponse } from '../models/api-response.model';
 
 @Injectable({
   providedIn: 'root'
@@ -13,18 +14,26 @@ export class HouseholdService {
   constructor(private http: HttpClient) {}
 
   getMyHouseholds(): Observable<Household[]> {
-    return this.http.get<Household[]>(this.apiUrl);
+    return this.http.get<ApiResponse<Household[]>>(this.apiUrl).pipe(
+      map(response => response.data)
+    );
   }
 
   getHousehold(id: string): Observable<Household> {
-    return this.http.get<Household>(`${this.apiUrl}/${id}`);
+    return this.http.get<ApiResponse<Household>>(`${this.apiUrl}/${id}`).pipe(
+      map(response => response.data)
+    );
   }
 
   createHousehold(request: CreateHouseholdRequest): Observable<Household> {
-    return this.http.post<Household>(this.apiUrl, request);
+    return this.http.post<ApiResponse<Household>>(this.apiUrl, request).pipe(
+      map(response => response.data)
+    );
   }
 
-  joinHousehold(inviteCode: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/join/${inviteCode}`, {});
+  joinHousehold(inviteCode: string): Observable<Household> {
+    return this.http.post<ApiResponse<Household>>(`${this.apiUrl}/join/${inviteCode}`, {}).pipe(
+      map(response => response.data)
+    );
   }
 }

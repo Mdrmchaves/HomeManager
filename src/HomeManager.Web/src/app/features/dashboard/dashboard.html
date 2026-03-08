@@ -1,0 +1,12 @@
+<div class="dashboard-container">
+  <mat-spinner *ngIf="loading"></mat-spinner>
+
+  <div *ngIf="!loading">
+    <div *ngIf="(households$ | async) as households">
+      <app-item-list *ngIf="households.length > 0; else noHousehold" [households]="households"></app-item-list>
+      <ng-template #noHousehold>
+        <app-welcome></app-welcome>
+      </ng-template>
+    </div>
+  </div>
+</div>

@@ -1,1 +1,11 @@
-<router-outlet />
+<mat-toolbar color="primary">
+  <span>HomeManager</span>
+  <span class="spacer"></span>
+  <button *ngIf="currentUser$ | async" mat-icon-button (click)="logout()">
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<main class="content">
+  <router-outlet />
+</main>

@@ -75,7 +75,7 @@ export class SupabaseService {
     return this.currentUserSubject.value;
   }
 
-  // Upload de imagem
+  // Upload de imagem — retorna o path (ex: "items/uuid-ts.jpg"), não a URL pública
   async uploadItemPhoto(file: File, itemId: string): Promise<string> {
     const fileExt = file.name.split('.').pop();
     const fileName = `${itemId}-${Date.now()}.${fileExt}`;
@@ -87,21 +87,31 @@ export class SupabaseService {
 
     if (error) throw error;
 
-    // Retorna URL pública
-    const { data } = this.supabase.storage
-      .from('item-photos')
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
+    return filePath;
   }
 
-  async deleteItemPhoto(photoUrl: string) {
-    // Extrai o path do URL
-    const path = photoUrl.split('/item-photos/')[1];
+  // Gera URLs assinadas temporárias (padrão: 1 hora) para um conjunto de paths
+  async createSignedUrls(paths: string[], expiresIn = 3600): Promise<Record<string, string>> {
+    const { data, error } = await this.supabase.storage
+      .from('item-photos')
+      .createSignedUrls(paths, expiresIn);
 
+    if (error) throw error;
+
+    const result: Record<string, string> = {};
+    for (const entry of data ?? []) {
+      if (entry.path && entry.signedUrl) {
+        result[entry.path] = entry.signedUrl;
+      }
+    }
+    return result;
+  }
+
+  // photoPath é o path retornado pelo upload (ex: "items/uuid-ts.jpg")
+  async deleteItemPhoto(photoPath: string) {
     const { error } = await this.supabase.storage
       .from('item-photos')
-      .remove([`items/${path}`]);
+      .remove([photoPath]);
 
     if (error) throw error;
   }

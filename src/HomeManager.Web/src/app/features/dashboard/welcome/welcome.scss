@@ -1,0 +1,10 @@
+.welcome-container {
+  text-align: center;
+
+  mat-card-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+  }
+}

@@ -1,43 +1,77 @@
-<div class="container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>🎉 Welcome to HomeManager!</mat-card-title>
-    </mat-card-header>
+<div class="item-list-container">
+  <div class="header">
+    <h1>{{ selectedHouseholdName }}</h1>
+    <button mat-fab color="primary" routerLink="/inventory/item/new">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
 
-    <mat-card-content>
-      <p>Logged in as: <strong>{{ userEmail }}</strong></p>
+  @if (loading) {
+    <div class="loading-shade">
+      <mat-spinner></mat-spinner>
+    </div>
+  }
 
-      <div *ngIf="loading" class="loading">
-        <mat-spinner diameter="40"></mat-spinner>
-        <p>Loading your data...</p>
-      </div>
+  @if (!loading && error) {
+    <div class="error-message">
+      <p>❌ {{ error }}</p>
+      <button mat-stroked-button (click)="loadItems()">Retry</button>
+    </div>
+  }
 
-      <div *ngIf="!loading && error" class="error">
-        ❌ Error: {{ error }}
-      </div>
+  @if (!loading && !error && items.length === 0) {
+    <div class="empty-state">
+      <mat-icon>inventory_2</mat-icon>
+      <p>No items yet. Click + to add your first item!</p>
+    </div>
+  }
 
-      <div *ngIf="!loading && !error">
-        <h3>Your Households ({{ households.length }})</h3>
-        <ul *ngIf="households.length > 0">
-          <li *ngFor="let h of households">
-            {{ h.name }} - Code: {{ h.inviteCode }}
-          </li>
-        </ul>
-        <p *ngIf="households.length === 0">
-          No households yet. Create one!
-        </p>
+  @if (!loading && !error && items.length > 0) {
+    <div class="items-grid">
+      @for (item of items; track item.id) {
+        <mat-card class="item-card">
 
-        <h3>Your Items ({{ items.length }})</h3>
-        <p *ngIf="items.length === 0">
-          No items yet. Start your inventory!
-        </p>
-      </div>
-    </mat-card-content>
+          @if (item.photoUrl && signedUrls[item.photoUrl]) {
+            <img mat-card-image [src]="signedUrls[item.photoUrl]" [alt]="item.name" />
+          } @else {
+            <div class="photo-placeholder">
+              <mat-icon>inventory_2</mat-icon>
+            </div>
+          }
 
-    <mat-card-actions>
-      <button mat-raised-button color="warn" (click)="logout()">
-        Logout
-      </button>
-    </mat-card-actions>
-  </mat-card>
+          <mat-card-header>
+            <mat-card-title>{{ item.name }}</mat-card-title>
+            @if (item.location) {
+              <mat-card-subtitle>{{ item.location }}</mat-card-subtitle>
+            }
+          </mat-card-header>
+
+          @if (item.destination) {
+            <mat-card-content>
+              <span class="destination-chip destination-{{ item.destination.toLowerCase() }}">
+                {{ item.destination }}
+              </span>
+            </mat-card-content>
+          }
+
+          <mat-card-actions align="end">
+            <button
+              mat-icon-button
+              color="warn"
+              (click)="deleteItem(item)"
+              [disabled]="deletingId === item.id"
+              title="Delete item"
+            >
+              @if (deletingId === item.id) {
+                <mat-spinner [diameter]="20"></mat-spinner>
+              } @else {
+                <mat-icon>delete</mat-icon>
+              }
+            </button>
+          </mat-card-actions>
+
+        </mat-card>
+      }
+    </div>
+  }
 </div>

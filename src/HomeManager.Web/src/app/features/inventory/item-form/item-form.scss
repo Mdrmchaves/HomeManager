@@ -26,31 +26,48 @@
 
 .photo-upload-area {
   display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 120px;
+  border: 2px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.photo-action-btn {
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 140px;
-  border: 2px dashed rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  gap: 6px;
+  flex: 1;
+  background: none;
+  border: none;
   cursor: pointer;
   color: rgba(0, 0, 0, 0.45);
-  transition: border-color 0.2s, color 0.2s;
+  transition: background-color 0.2s, color 0.2s;
+  padding: 0;
 
   mat-icon {
-    font-size: 36px;
-    width: 36px;
-    height: 36px;
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
   }
 
   span {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   &:hover {
-    border-color: var(--mat-sys-primary, #6750a4);
+    background-color: rgba(103, 80, 164, 0.08);
     color: var(--mat-sys-primary, #6750a4);
   }
+}
+
+.photo-divider {
+  width: 1px;
+  background-color: rgba(0, 0, 0, 0.12);
+  align-self: stretch;
 }
 
 .photo-preview {

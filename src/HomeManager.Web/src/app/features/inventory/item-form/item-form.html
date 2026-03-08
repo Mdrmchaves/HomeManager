@@ -16,6 +16,14 @@
             hidden
             (change)="onPhotoSelect($event)"
           />
+          <input
+            #cameraInput
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            (change)="onPhotoSelect($event)"
+          />
 
           @if (photoPreviewUrl) {
             <div class="photo-preview">
@@ -25,9 +33,16 @@
               </button>
             </div>
           } @else {
-            <div class="photo-upload-area" (click)="photoInput.click()">
-              <mat-icon>add_photo_alternate</mat-icon>
-              <span>Add photo</span>
+            <div class="photo-upload-area">
+              <button type="button" class="photo-action-btn" (click)="cameraInput.click()">
+                <mat-icon>camera_alt</mat-icon>
+                <span>Take photo</span>
+              </button>
+              <div class="photo-divider"></div>
+              <button type="button" class="photo-action-btn" (click)="photoInput.click()">
+                <mat-icon>photo_library</mat-icon>
+                <span>Choose photo</span>
+              </button>
             </div>
           }
         </div>

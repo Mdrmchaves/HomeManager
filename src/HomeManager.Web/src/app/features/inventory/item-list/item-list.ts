@@ -57,7 +57,14 @@ export class ItemListComponent implements OnChanges {
 
     this.deletingId = item.id;
     this.inventoryService.deleteItem(item.id).subscribe({
-      next: () => {
+      next: async () => {
+        if (item.photoUrl) {
+          try {
+            await this.supabaseService.deleteItemPhoto(item.photoUrl);
+          } catch (err) {
+            console.warn('Failed to delete item photo from storage:', err);
+          }
+        }
         this.items = this.items.filter(i => i.id !== item.id);
         this.deletingId = null;
         this.snackBar.open('Item deleted', 'Close', { duration: 3000 });

@@ -1,10 +1,10 @@
-namespace HomeManager.API.Models.DTOs;
+namespace HomeManager.API.Models.DTOs.Requests;
 
-public record CreateItemRequest(
-    Guid HouseholdId,
-    string Name,
+public record UpdateItemRequest(
+    string? Name,
     string? Description,
     decimal? Value,
+    string? PhotoUrl,
     string? Location,
     string? Destination,
     Guid? OwnerId,

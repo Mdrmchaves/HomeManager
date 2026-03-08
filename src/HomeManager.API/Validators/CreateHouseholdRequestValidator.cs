@@ -1,6 +1,7 @@
 using FluentValidation;
 using HomeManager.API.Controllers;
 using HomeManager.API.Models.DTOs;
+using HomeManager.API.Models.DTOs.Requests;
 
 namespace HomeManager.API.Validators;
 

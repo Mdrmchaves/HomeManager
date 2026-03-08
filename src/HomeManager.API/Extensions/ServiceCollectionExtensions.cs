@@ -21,7 +21,7 @@ public static class ServiceCollectionExtensions
 
         // Add more services here as we create them
         // services.AddScoped<IInventoryService, InventoryService>();
-        // services.AddScoped<IHouseholdService, HouseholdService>();
+        services.AddScoped<IHouseholdService, HouseholdService>();
 
         return services;
     }
@@ -36,18 +36,16 @@ public static class ServiceCollectionExtensions
             ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection string not configured");
 
-        Console.WriteLine($"🔧 Using DB: {connectionString.Substring(0, 30)}..."); // Show first 30 chars only
-
         services.AddDbContext<ApplicationDbContext>(options =>
+        {
             options.UseNpgsql(
                 connectionString,
                 npgsqlOptions =>
                 {
                     npgsqlOptions.CommandTimeout(60);
-                    npgsqlOptions.EnableRetryOnFailure(3);
                 }
-            )
-        );
+            );
+        });
 
         return services;
     }
@@ -65,8 +63,6 @@ public static class ServiceCollectionExtensions
 
         // Remove trailing slash
         supabaseUrl = supabaseUrl.TrimEnd('/');
-
-        Console.WriteLine($"🔧 Using Supabase URL: {supabaseUrl}");
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

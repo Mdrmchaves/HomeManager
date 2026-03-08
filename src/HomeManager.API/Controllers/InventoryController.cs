@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using HomeManager.API.Data;
-using HomeManager.API.Models.DTOs;
+using HomeManager.API.Models.DTOs.Requests;
 using HomeManager.API.Models.Inventory;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -95,6 +95,7 @@ public class InventoryController : ControllerBase
             Name = request.Name,
             Description = request.Description,
             Value = request.Value,
+            PhotoUrl = request.PhotoUrl,
             Location = request.Location,
             Destination = request.Destination,
             OwnerId = request.OwnerId,

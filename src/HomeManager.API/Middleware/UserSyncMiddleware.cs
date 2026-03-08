@@ -14,7 +14,7 @@ public class UserSyncMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, IUserSyncService userSyncService)
+    public async Task InvokeAsync(HttpContext context, IServiceScopeFactory scopeFactory)
     {
         // Only sync if user is authenticated
         if (context.User.Identity?.IsAuthenticated == true)
@@ -23,7 +23,6 @@ public class UserSyncMiddleware
 
             try
             {
-                // Extract user info from JWT claims
                 var userId =
                     context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
                     ?? context.User.FindFirst("sub")?.Value;
@@ -45,7 +44,10 @@ public class UserSyncMiddleware
 
                 if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(email))
                 {
-                    // Ensure user exists in our database
+                    // Use a dedicated scope so the sync DbContext/connection is isolated
+                    // from the request-scoped DbContext used by controllers/services.
+                    using var scope = scopeFactory.CreateScope();
+                    var userSyncService = scope.ServiceProvider.GetRequiredService<IUserSyncService>();
                     await userSyncService.EnsureUserExistsAsync(userId, email, name);
                     _logger.LogInformation("User sync completed successfully");
                 }
@@ -59,10 +61,6 @@ public class UserSyncMiddleware
                 _logger.LogError(ex, "Error syncing user to database");
                 // Don't block the request if sync fails
             }
-        }
-        else
-        {
-            _logger.LogInformation("User is NOT authenticated, skipping sync");
         }
 
         await _next(context);

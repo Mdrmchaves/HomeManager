@@ -44,7 +44,9 @@
     "@angular/cli": "^21.1.4",
     "@angular/compiler-cli": "^21.1.0",
     "@angular/material": "^21.1.4",
+    "@tailwindcss/postcss": "^4.2.1",
     "jsdom": "^27.1.0",
+    "tailwindcss": "^4.2.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
   }

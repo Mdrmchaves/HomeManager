@@ -11,29 +11,16 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  console.log('🔐 Interceptor: Attempting to add token to request:', req.url);
-
-  // Pega o token do Supabase
   return from(supabaseService.getAccessToken()).pipe(
     switchMap(token => {
-      console.log('🔐 Token retrieved:', token ? 'YES ✅' : 'NO ❌');
-
       if (token) {
         const cloned = req.clone({
-          setHeaders: {
-            Authorization: `Bearer ${token}`
-          }
+          setHeaders: { Authorization: `Bearer ${token}` }
         });
-        console.log('🔐 Request cloned with Authorization header');
         return next(cloned);
       }
-
-      console.warn('⚠️ No token found, sending request without auth');
       return next(req);
     }),
-    catchError(error => {
-      console.error('❌ Error in auth interceptor:', error);
-      return throwError(() => error);
-    })
+    catchError(error => throwError(() => error))
   );
 };

@@ -1,0 +1,56 @@
+<div class="flex flex-col items-center py-12 px-4">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="w-16 h-16 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-bold text-stone-800">Bem-vindo ao HomeManager!</h2>
+      <p class="text-stone-500 text-sm mt-2">Crie o seu agregado ou entre num existente com um código de convite.</p>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+      <!-- Toggle -->
+      <div class="flex bg-stone-100 rounded-xl p-1 mb-6">
+        <button type="button" class="flex-1 py-2 text-sm font-medium rounded-lg transition-all"
+          [class.bg-white]="mode === 'create'" [class.shadow-sm]="mode === 'create'"
+          [class.text-stone-800]="mode === 'create'" [class.text-stone-500]="mode !== 'create'"
+          (click)="switchMode('create')">Criar agregado</button>
+        <button type="button" class="flex-1 py-2 text-sm font-medium rounded-lg transition-all"
+          [class.bg-white]="mode === 'join'" [class.shadow-sm]="mode === 'join'"
+          [class.text-stone-800]="mode === 'join'" [class.text-stone-500]="mode !== 'join'"
+          (click)="switchMode('join')">Entrar com código</button>
+      </div>
+
+      <form (ngSubmit)="submit()">
+        @if (mode === 'create') {
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-stone-700 mb-1.5">Nome do agregado</label>
+            <input type="text" [(ngModel)]="householdName" name="householdName" required minlength="2"
+              placeholder="Ex: Família Silva"
+              class="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+          </div>
+        } @else {
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-stone-700 mb-1.5">Código de convite</label>
+            <input type="text" [(ngModel)]="inviteCode" name="inviteCode" required
+              placeholder="Ex: AB12CD34"
+              class="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+          </div>
+        }
+
+        @if (error) {
+          <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+            <p class="text-sm text-red-700">{{ error }}</p>
+          </div>
+        }
+
+        <button type="submit" [disabled]="loading"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-semibold py-3 rounded-xl transition-colors">
+          {{ loading ? 'Aguarde...' : (mode === 'create' ? 'Criar agregado' : 'Entrar') }}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

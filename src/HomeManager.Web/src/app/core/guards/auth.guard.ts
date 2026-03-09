@@ -6,9 +6,9 @@ export const authGuard: CanActivateFn = async (route, state) => {
   const supabase = inject(SupabaseService);
   const router = inject(Router);
 
-  const user = supabase.getCurrentUser();
+  const session = await supabase.getSession();
 
-  if (!user) {
+  if (!session) {
     router.navigate(['/login']);
     return false;
   }

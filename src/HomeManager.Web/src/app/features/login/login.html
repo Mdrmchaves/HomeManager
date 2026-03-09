@@ -1,0 +1,115 @@
+<div class="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+  <div class="w-full max-w-sm">
+
+    <!-- Brand -->
+    <div class="flex flex-col items-center mb-8">
+      <div class="w-14 h-14 bg-emerald-600 rounded-2xl flex items-center justify-center mb-4 shadow-md">
+        <span class="text-white text-2xl font-bold">H</span>
+      </div>
+      <h1 class="text-2xl font-bold text-stone-800">HomeManager</h1>
+      <p class="text-stone-500 text-sm mt-1">Gestão do seu lar, simplificada.</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-white rounded-2xl shadow-sm border border-stone-200 p-6">
+
+      <!-- Mode toggle -->
+      <div class="flex bg-stone-100 rounded-xl p-1 mb-6">
+        <button
+          type="button"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150"
+          [class.bg-white]="mode === 'signin'"
+          [class.shadow-sm]="mode === 'signin'"
+          [class.text-stone-800]="mode === 'signin'"
+          [class.text-stone-500]="mode !== 'signin'"
+          (click)="switchMode('signin')"
+        >Entrar</button>
+        <button
+          type="button"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150"
+          [class.bg-white]="mode === 'signup'"
+          [class.shadow-sm]="mode === 'signup'"
+          [class.text-stone-800]="mode === 'signup'"
+          [class.text-stone-500]="mode !== 'signup'"
+          (click)="switchMode('signup')"
+        >Criar conta</button>
+      </div>
+
+      <form (ngSubmit)="submit()" #f="ngForm">
+
+        @if (mode === 'signup') {
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-stone-700 mb-1.5" for="name">Nome</label>
+            <input
+              id="name"
+              type="text"
+              name="name"
+              [(ngModel)]="name"
+              required
+              minlength="2"
+              placeholder="O seu nome"
+              class="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+        }
+
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-stone-700 mb-1.5" for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            [(ngModel)]="email"
+            required
+            placeholder="email@exemplo.pt"
+            class="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          />
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-stone-700 mb-1.5" for="password">Palavra-passe</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            [(ngModel)]="password"
+            required
+            minlength="6"
+            placeholder="Mínimo 6 caracteres"
+            class="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm text-stone-800 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          />
+        </div>
+
+        @if (errorMessage) {
+          <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+            <p class="text-sm text-red-700">{{ errorMessage }}</p>
+          </div>
+        }
+
+        @if (successMessage) {
+          <div class="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <p class="text-sm text-emerald-700">{{ successMessage }}</p>
+          </div>
+        }
+
+        <button
+          type="submit"
+          [disabled]="loading || f.invalid"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors duration-150"
+        >
+          @if (loading) {
+            <span class="inline-flex items-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Aguarde...
+            </span>
+          } @else {
+            {{ mode === 'signin' ? 'Entrar' : 'Criar conta' }}
+          }
+        </button>
+      </form>
+    </div>
+  </div>
+</div>

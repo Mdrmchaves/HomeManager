@@ -4,39 +4,38 @@ import { authGuard } from './core/guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: '/dashboard',
+    redirectTo: 'dashboard',
     pathMatch: 'full'
   },
   {
     path: 'login',
-    loadComponent: () => import('./features/auth/login/login').then(m => m.LoginComponent)
+    loadComponent: () => import('./features/login/login').then(m => m.LoginComponent)
   },
   {
-    path: 'register',
-    loadComponent: () => import('./features/auth/register/register').then(m => m.RegisterComponent)
-  },
-  {
-    path: 'dashboard',
+    path: '',
+    loadComponent: () => import('./shared/layouts/app-shell/app-shell').then(m => m.AppShellComponent),
     canActivate: [authGuard],
-    loadComponent: () => import('./features/dashboard/dashboard').then(m => m.DashboardComponent)
-  },
-  {
-    path: 'inventory',
-    canActivate: [authGuard],
-    loadChildren: () => import('./features/inventory/inventory.routes').then(m => m.inventoryRoutes)
-  },
-  {
-    path: 'household/create',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/household/create-household/create-household').then(m => m.CreateHouseholdComponent)
-  },
-  {
-    path: 'household/join',
-    canActivate: [authGuard],
-    loadComponent: () => import('./features/household/join-household/join-household').then(m => m.JoinHouseholdComponent)
+    children: [
+      {
+        path: 'dashboard',
+        loadComponent: () => import('./features/dashboard/dashboard').then(m => m.DashboardComponent)
+      },
+      {
+        path: 'inventory',
+        loadComponent: () => import('./features/inventory/inventory').then(m => m.InventoryComponent)
+      },
+      {
+        path: 'tasks',
+        loadComponent: () => import('./features/tasks/tasks').then(m => m.TasksComponent)
+      },
+      {
+        path: 'budget',
+        loadComponent: () => import('./features/budget/budget').then(m => m.BudgetComponent)
+      }
+    ]
   },
   {
     path: '**',
-    redirectTo: '/dashboard'
+    redirectTo: 'dashboard'
   }
 ];

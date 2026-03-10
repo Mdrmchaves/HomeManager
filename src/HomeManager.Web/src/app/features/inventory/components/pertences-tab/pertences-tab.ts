@@ -4,10 +4,13 @@ import { takeUntil, switchMap } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
+import { ItemFormComponent } from '../item-form/item-form';
 import { HouseholdService } from '../../../../core/services/household.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { LocationService } from '../../../../core/services/location.service';
+import { CategoryService } from '../../../../core/services/category.service';
 import { Location } from '../../../../core/models/location.model';
+import { Category } from '../../../../core/models/category.model';
 import { InventoryItem } from '../../../../core/models/inventory-item.model';
 
 interface LocationGroup {
@@ -19,43 +22,57 @@ interface LocationGroup {
 @Component({
   selector: 'app-pertences-tab',
   standalone: true,
-  imports: [StatusDotComponent, SearchInputComponent, FabComponent],
+  imports: [StatusDotComponent, SearchInputComponent, FabComponent, ItemFormComponent],
   templateUrl: './pertences-tab.html'
 })
 export class PertencesTabComponent implements OnInit, OnDestroy {
   allItems: InventoryItem[] = [];
   locations: Location[] = [];
+  categories: Category[] = [];
   searchQuery = '';
   selectedCategory = 'Todos';
   collapsedLocations = new Set<string>();
   showNewLocationModal = false;
+  showItemForm = false;
+  editingItem: InventoryItem | undefined = undefined;
+  preselectedLocationId: string | undefined = undefined;
   loading = false;
 
-  private householdId: string | null = null;
+  householdId = '';
+
   private destroy$ = new Subject<void>();
 
   constructor(
     private householdService: HouseholdService,
     private inventoryService: InventoryService,
-    private locationService: LocationService
+    private locationService: LocationService,
+    private categoryService: CategoryService
   ) {}
 
   ngOnInit(): void {
     this.householdService.selectedHousehold$.pipe(
       takeUntil(this.destroy$),
       switchMap(household => {
-        if (!household) return of({ items: [] as InventoryItem[], locations: [] as Location[] });
+        if (!household) {
+          return of({
+            items: [] as InventoryItem[],
+            locations: [] as Location[],
+            categories: [] as Category[]
+          });
+        }
         this.householdId = household.id;
         this.loading = true;
         return combineLatest({
           items: this.inventoryService.getItems(household.id),
-          locations: this.locationService.getLocations(household.id)
+          locations: this.locationService.getLocations(household.id),
+          categories: this.categoryService.getCategories(household.id, 'pertences')
         });
       })
     ).subscribe({
-      next: ({ items, locations }) => {
+      next: ({ items, locations, categories }) => {
         this.allItems = items;
         this.locations = locations;
+        this.categories = categories;
         this.loading = false;
       },
       error: () => { this.loading = false; }
@@ -88,9 +105,7 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
     const groups: LocationGroup[] = [];
     for (const loc of this.locations) {
       const items = this.filteredItems.filter(i => i.locationId === loc.id);
-      if (items.length > 0) {
-        groups.push({ locationId: loc.id, locationName: loc.name, items });
-      }
+      groups.push({ locationId: loc.id, locationName: loc.name, items });
     }
     const noLoc = this.filteredItems.filter(i => !i.locationId);
     if (noLoc.length > 0) {
@@ -136,11 +151,46 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
     this.showNewLocationModal = false;
   }
 
-  createLocation(name: string): void {
+  createLocation(name: string, icon?: string): void {
     if (!name.trim() || !this.householdId) return;
-    this.locationService.addLocation(name.trim(), this.householdId).subscribe(loc => {
+    this.locationService.addLocation(name.trim(), this.householdId, icon?.trim() || undefined).subscribe(loc => {
       this.locations = [...this.locations, loc];
       this.showNewLocationModal = false;
+    });
+  }
+
+  openItemForm(item?: InventoryItem, locationId?: string | null): void {
+    this.editingItem = item;
+    this.preselectedLocationId = locationId ?? undefined;
+    this.showItemForm = true;
+  }
+
+  closeItemForm(): void {
+    this.showItemForm = false;
+    this.editingItem = undefined;
+    this.preselectedLocationId = undefined;
+  }
+
+  onItemSaved(): void {
+    this.closeItemForm();
+    this.reloadData();
+  }
+
+  private reloadData(): void {
+    if (!this.householdId) return;
+    this.loading = true;
+    combineLatest({
+      items: this.inventoryService.getItems(this.householdId),
+      locations: this.locationService.getLocations(this.householdId),
+      categories: this.categoryService.getCategories(this.householdId, 'pertences')
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ items, locations, categories }) => {
+        this.allItems = items;
+        this.locations = locations;
+        this.categories = categories;
+        this.loading = false;
+      },
+      error: () => { this.loading = false; }
     });
   }
 }

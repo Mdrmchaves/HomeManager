@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subject, combineLatest, of } from 'rxjs';
-import { takeUntil, switchMap, take } from 'rxjs/operators';
+import { takeUntil, switchMap, take, catchError } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
@@ -43,7 +43,6 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
 
   householdId = '';
 
-  private hasLoadedOnce = false;
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -65,28 +64,29 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
           });
         }
         this.householdId = household.id;
-        if (this.hasLoadedOnce) {
-          this.reloading = true;
-        }
         return combineLatest({
-          items: this.inventoryService.getItems(household.id),
-          locations: this.locationService.getLocations(household.id),
-          categories: this.categoryService.getCategories(household.id, 'pertences')
+          items: this.inventoryService.getItems(household.id).pipe(
+            catchError(() => of([] as InventoryItem[]))
+          ),
+          locations: this.locationService.getLocations(household.id).pipe(
+            catchError(() => of([] as Location[]))
+          ),
+          categories: this.categoryService.getCategories(household.id, 'pertences').pipe(
+            catchError(() => of([] as Category[]))
+          )
         });
       })
     ).subscribe({
-      next: ({ items, locations, categories }) => {
-        this.allItems = items;
-        this.locations = locations;
-        this.categories = categories;
-        if (!this.hasLoadedOnce) {
-          this.hasLoadedOnce = true;
-          this.initialLoading = false;
-        } else {
-          this.reloading = false;
-        }
+      next: (result) => {
+        console.log('[PertencesTab] data received:', result);
+        this.allItems = result.items;
+        this.locations = result.locations;
+        this.categories = result.categories;
+        this.initialLoading = false;
+        this.reloading = false;
       },
-      error: () => {
+      error: (err) => {
+        console.error('[PertencesTab] stream error:', err);
         this.initialLoading = false;
         this.reloading = false;
       }
@@ -194,9 +194,15 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
     if (!this.householdId) return;
     this.reloading = true;
     combineLatest({
-      items: this.inventoryService.getItems(this.householdId),
-      locations: this.locationService.getLocations(this.householdId),
-      categories: this.categoryService.getCategories(this.householdId, 'pertences')
+      items: this.inventoryService.getItems(this.householdId).pipe(
+        catchError(() => of([] as InventoryItem[]))
+      ),
+      locations: this.locationService.getLocations(this.householdId).pipe(
+        catchError(() => of([] as Location[]))
+      ),
+      categories: this.categoryService.getCategories(this.householdId, 'pertences').pipe(
+        catchError(() => of([] as Category[]))
+      )
     }).pipe(take(1)).subscribe({
       next: ({ items, locations, categories }) => {
         this.allItems = items;

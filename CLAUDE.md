@@ -276,6 +276,7 @@ Npgsql 10.0.0 throws `ObjectDisposedException: ManualResetEventSlim` on `SaveCha
 - **`[class.foo]` bindings** work without `NgClass` import. Only `[ngClass]="object"` needs it.
 - **Tailwind v4 critical**: config must be `postcss.config.json` (not `.js`/`.mjs`). The `@angular/build:application` esbuild builder only reads JSON PostCSS configs. Built-in Tailwind support is v3 API — must use `@tailwindcss/postcss`.
 - **Mock data** is isolated in `core/mock/` — trivially swappable with real service calls.
+- **`combineLatest` with individual `catchError`**: when loading multiple resources in parallel via `combineLatest`, wrap each observable with `.pipe(catchError(() => of([])))`. This prevents a single failing request from blocking `combineLatest` from emitting and leaving the UI stuck in a loading state indefinitely.
 
 ### Middleware Pipeline Order
 

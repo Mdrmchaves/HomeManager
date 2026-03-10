@@ -128,6 +128,7 @@ export class ItemFormComponent implements OnInit {
         await firstValueFrom(this.inventoryService.createItem(payload));
       }
 
+      this.saving = false;
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao guardar. Tenta novamente.';
@@ -157,6 +158,7 @@ export class ItemFormComponent implements OnInit {
           // best-effort storage cleanup
         }
       }
+      this.deleting = false;
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao apagar. Tenta novamente.';

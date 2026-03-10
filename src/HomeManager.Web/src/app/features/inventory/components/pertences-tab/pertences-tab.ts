@@ -1,6 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subject, combineLatest, of } from 'rxjs';
-import { takeUntil, switchMap } from 'rxjs/operators';
+import { takeUntil, switchMap, take } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
@@ -197,7 +197,7 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
       items: this.inventoryService.getItems(this.householdId),
       locations: this.locationService.getLocations(this.householdId),
       categories: this.categoryService.getCategories(this.householdId, 'pertences')
-    }).pipe(takeUntil(this.destroy$)).subscribe({
+    }).pipe(take(1)).subscribe({
       next: ({ items, locations, categories }) => {
         this.allItems = items;
         this.locations = locations;

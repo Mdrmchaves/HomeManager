@@ -23,7 +23,8 @@ export class ItemFormComponent implements OnInit {
   @Output() saved = new EventEmitter<void>();
 
   form!: FormGroup;
-  loading = false;
+  saving = false;
+  deleting = false;
   error = '';
   isEdit = false;
 
@@ -88,8 +89,8 @@ export class ItemFormComponent implements OnInit {
 
   async submit(): Promise<void> {
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.loading) return;
-    this.loading = true;
+    if (this.form.invalid || this.saving) return;
+    this.saving = true;
     this.error = '';
 
     try {
@@ -130,7 +131,7 @@ export class ItemFormComponent implements OnInit {
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao guardar. Tenta novamente.';
-      this.loading = false;
+      this.saving = false;
     }
   }
 
@@ -143,8 +144,8 @@ export class ItemFormComponent implements OnInit {
   }
 
   async deleteItem(): Promise<void> {
-    if (!this.item || this.loading) return;
-    this.loading = true;
+    if (!this.item || this.deleting) return;
+    this.deleting = true;
     this.error = '';
 
     try {
@@ -159,7 +160,7 @@ export class ItemFormComponent implements OnInit {
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao apagar. Tenta novamente.';
-      this.loading = false;
+      this.deleting = false;
     }
   }
 

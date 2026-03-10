@@ -5,6 +5,7 @@ import { StatusDotComponent } from '../../../../shared/components/status-dot/sta
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
 import { ItemFormComponent } from '../item-form/item-form';
+import { SkeletonBlockComponent } from '../../../../shared/components/skeleton-block/skeleton-block';
 import { HouseholdService } from '../../../../core/services/household.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { LocationService } from '../../../../core/services/location.service';
@@ -22,7 +23,7 @@ interface LocationGroup {
 @Component({
   selector: 'app-pertences-tab',
   standalone: true,
-  imports: [StatusDotComponent, SearchInputComponent, FabComponent, ItemFormComponent],
+  imports: [StatusDotComponent, SearchInputComponent, FabComponent, ItemFormComponent, SkeletonBlockComponent],
   templateUrl: './pertences-tab.html'
 })
 export class PertencesTabComponent implements OnInit, OnDestroy {
@@ -36,10 +37,13 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
   showItemForm = false;
   editingItem: InventoryItem | undefined = undefined;
   preselectedLocationId: string | undefined = undefined;
-  loading = false;
+
+  initialLoading = true;
+  reloading = false;
 
   householdId = '';
 
+  private hasLoadedOnce = false;
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -61,7 +65,9 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
           });
         }
         this.householdId = household.id;
-        this.loading = true;
+        if (this.hasLoadedOnce) {
+          this.reloading = true;
+        }
         return combineLatest({
           items: this.inventoryService.getItems(household.id),
           locations: this.locationService.getLocations(household.id),
@@ -73,9 +79,17 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
         this.allItems = items;
         this.locations = locations;
         this.categories = categories;
-        this.loading = false;
+        if (!this.hasLoadedOnce) {
+          this.hasLoadedOnce = true;
+          this.initialLoading = false;
+        } else {
+          this.reloading = false;
+        }
       },
-      error: () => { this.loading = false; }
+      error: () => {
+        this.initialLoading = false;
+        this.reloading = false;
+      }
     });
   }
 
@@ -153,9 +167,9 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
 
   createLocation(name: string, icon?: string): void {
     if (!name.trim() || !this.householdId) return;
-    this.locationService.addLocation(name.trim(), this.householdId, icon?.trim() || undefined).subscribe(loc => {
-      this.locations = [...this.locations, loc];
+    this.locationService.addLocation(name.trim(), this.householdId, icon?.trim() || undefined).subscribe(() => {
       this.showNewLocationModal = false;
+      this.reloadData();
     });
   }
 
@@ -178,7 +192,7 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
 
   private reloadData(): void {
     if (!this.householdId) return;
-    this.loading = true;
+    this.reloading = true;
     combineLatest({
       items: this.inventoryService.getItems(this.householdId),
       locations: this.locationService.getLocations(this.householdId),
@@ -188,9 +202,9 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
         this.allItems = items;
         this.locations = locations;
         this.categories = categories;
-        this.loading = false;
+        this.reloading = false;
       },
-      error: () => { this.loading = false; }
+      error: () => { this.reloading = false; }
     });
   }
 }

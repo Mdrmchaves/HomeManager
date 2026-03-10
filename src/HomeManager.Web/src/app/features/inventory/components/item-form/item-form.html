@@ -19,13 +19,13 @@
           <p class="text-red-500 text-sm mb-4 text-center">{{ error }}</p>
         }
         <div class="flex gap-3 w-full">
-          <button type="button" (click)="cancelDelete()" [disabled]="loading"
+          <button type="button" (click)="cancelDelete()" [disabled]="deleting"
                   class="flex-1 py-3 border border-stone-200 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50">
             Cancelar
           </button>
-          <button type="button" (click)="deleteItem()" [disabled]="loading"
+          <button type="button" (click)="deleteItem()" [disabled]="deleting"
                   class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-            {{ loading ? 'A apagar...' : 'Apagar' }}
+            {{ deleting ? 'A apagar...' : 'Apagar' }}
           </button>
         </div>
       </div>
@@ -151,9 +151,9 @@
                   class="flex-1 py-3 border border-stone-200 text-stone-600 hover:bg-stone-50 rounded-xl text-sm font-medium transition-colors">
             Cancelar
           </button>
-          <button type="submit" [disabled]="form.invalid || loading"
+          <button type="submit" [disabled]="form.invalid || saving"
                   class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors">
-            {{ loading ? 'A guardar...' : 'Guardar' }}
+            {{ saving ? 'A guardar...' : 'Guardar' }}
           </button>
         </div>
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { Subject, combineLatest, of } from 'rxjs';
 import { takeUntil, switchMap, take, catchError } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
@@ -23,6 +23,7 @@ interface LocationGroup {
 @Component({
   selector: 'app-pertences-tab',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [StatusDotComponent, SearchInputComponent, FabComponent, ItemFormComponent, SkeletonBlockComponent],
   templateUrl: './pertences-tab.html'
 })
@@ -40,6 +41,7 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
 
   initialLoading = true;
   reloading = false;
+  hasLoadedOnce = false;
 
   householdId = '';
 
@@ -49,7 +51,8 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
     private householdService: HouseholdService,
     private inventoryService: InventoryService,
     private locationService: LocationService,
-    private categoryService: CategoryService
+    private categoryService: CategoryService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -78,17 +81,18 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
       })
     ).subscribe({
       next: (result) => {
-        console.log('[PertencesTab] data received:', result);
         this.allItems = result.items;
         this.locations = result.locations;
         this.categories = result.categories;
         this.initialLoading = false;
         this.reloading = false;
+        this.hasLoadedOnce = true;
+        this.cdr.markForCheck();
       },
-      error: (err) => {
-        console.error('[PertencesTab] stream error:', err);
+      error: () => {
         this.initialLoading = false;
         this.reloading = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -209,8 +213,12 @@ export class PertencesTabComponent implements OnInit, OnDestroy {
         this.locations = locations;
         this.categories = categories;
         this.reloading = false;
+        this.cdr.markForCheck();
       },
-      error: () => { this.reloading = false; }
+      error: () => {
+        this.reloading = false;
+        this.cdr.markForCheck();
+      }
     });
   }
 }

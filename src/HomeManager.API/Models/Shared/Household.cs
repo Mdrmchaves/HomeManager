@@ -29,4 +29,6 @@ public class Household
     // Navigation
     public ICollection<HouseholdUser> HouseholdUsers { get; set; } = new List<HouseholdUser>();
     public ICollection<Inventory.InventoryItem> Items { get; set; } = new List<Inventory.InventoryItem>();
+    public ICollection<Inventory.Location> Locations { get; set; } = new List<Inventory.Location>();
+    public ICollection<Inventory.Category> Categories { get; set; } = new List<Inventory.Category>();
 }

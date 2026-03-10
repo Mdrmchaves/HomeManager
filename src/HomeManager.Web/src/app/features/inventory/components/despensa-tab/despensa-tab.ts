@@ -1,15 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject, combineLatest, of } from 'rxjs';
+import { takeUntil, switchMap } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
+import { HouseholdService } from '../../../../core/services/household.service';
+import { PantryService } from '../../../../core/services/pantry.service';
 import { LocationService } from '../../../../core/services/location.service';
 import { Location } from '../../../../core/models/location.model';
-import { MOCK_DESPENSA_ITEMS, MockDespensaItem } from '../../../../core/mock/inventory.mock';
+import { PantryItem } from '../../../../core/models/pantry-item.model';
 
 interface LocationGroup {
   locationId: string | null;
   locationName: string;
-  items: MockDespensaItem[];
+  items: PantryItem[];
 }
 
 @Component({
@@ -18,31 +22,64 @@ interface LocationGroup {
   imports: [StatusDotComponent, SearchInputComponent, FabComponent],
   templateUrl: './despensa-tab.html'
 })
-export class DespensaTabComponent {
-  allItems = MOCK_DESPENSA_ITEMS;
+export class DespensaTabComponent implements OnInit, OnDestroy {
+  allItems: PantryItem[] = [];
   locations: Location[] = [];
   searchQuery = '';
   selectedCategory = 'Todos';
   collapsedLocations = new Set<string>();
   showNewLocationModal = false;
+  loading = false;
 
-  constructor(private locationService: LocationService) {
-    this.locations = locationService.getLocations();
+  private householdId: string | null = null;
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private householdService: HouseholdService,
+    private pantryService: PantryService,
+    private locationService: LocationService
+  ) {}
+
+  ngOnInit(): void {
+    this.householdService.selectedHousehold$.pipe(
+      takeUntil(this.destroy$),
+      switchMap(household => {
+        if (!household) return of({ items: [] as PantryItem[], locations: [] as Location[] });
+        this.householdId = household.id;
+        this.loading = true;
+        return combineLatest({
+          items: this.pantryService.getItems(household.id),
+          locations: this.locationService.getLocations(household.id)
+        });
+      })
+    ).subscribe({
+      next: ({ items, locations }) => {
+        this.allItems = items;
+        this.locations = locations;
+        this.loading = false;
+      },
+      error: () => { this.loading = false; }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   get allCategories(): string[] {
-    const cats = new Set(this.allItems.map(i => i.category));
+    const cats = new Set(this.allItems.map(i => i.categoryName).filter(Boolean) as string[]);
     return ['Todos', ...Array.from(cats).sort()];
   }
 
-  private get filteredItems(): MockDespensaItem[] {
+  private get filteredItems(): PantryItem[] {
     let items = this.allItems;
     if (this.searchQuery.trim()) {
       const q = this.searchQuery.toLowerCase();
       items = items.filter(i => i.name.toLowerCase().includes(q));
     }
     if (this.selectedCategory !== 'Todos') {
-      items = items.filter(i => i.category === this.selectedCategory);
+      items = items.filter(i => i.categoryName === this.selectedCategory);
     }
     return items;
   }
@@ -75,8 +112,8 @@ export class DespensaTabComponent {
     return this.collapsedLocations.has(locationId ?? '__sem_local__');
   }
 
-  isLow(item: MockDespensaItem): boolean {
-    return item.status === 'low' || item.status === 'warning';
+  isLow(item: PantryItem): boolean {
+    return item.status === 'low';
   }
 
   chipClass(cat: string): string {
@@ -95,9 +132,10 @@ export class DespensaTabComponent {
   }
 
   createLocation(name: string): void {
-    if (!name.trim()) return;
-    this.locationService.addLocation(name, 'mock-household');
-    this.locations = this.locationService.getLocations();
-    this.showNewLocationModal = false;
+    if (!name.trim() || !this.householdId) return;
+    this.locationService.addLocation(name.trim(), this.householdId).subscribe(loc => {
+      this.locations = [...this.locations, loc];
+      this.showNewLocationModal = false;
+    });
   }
 }

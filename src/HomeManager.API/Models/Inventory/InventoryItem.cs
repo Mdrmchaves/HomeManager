@@ -28,9 +28,20 @@ public class InventoryItem
     [Column("photo_url")]
     public string? PhotoUrl { get; set; }
 
+    /// <summary>
+    /// Legacy free-text location field. Use <see cref="LocationId"/> instead.
+    /// Kept for backward compatibility until data is migrated.
+    /// </summary>
+    [Obsolete("Use LocationId (FK to inventory.locations) instead.")]
     [Column("location")]
     [MaxLength(255)]
     public string? Location { get; set; }
+
+    [Column("location_id")]
+    public Guid? LocationId { get; set; }
+
+    [Column("category_id")]
+    public Guid? CategoryId { get; set; }
 
     [Column("destination")]
     [MaxLength(50)]
@@ -55,4 +66,6 @@ public class InventoryItem
     public Household Household { get; set; } = null!;
     public User? Owner { get; set; }
     public ItemList? List { get; set; }
+    public Location? LocationRef { get; set; }
+    public Category? Category { get; set; }
 }

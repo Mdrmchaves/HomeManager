@@ -5,9 +5,11 @@ public record UpdateItemRequest(
     string? Description,
     decimal? Value,
     string? PhotoUrl,
-    string? Location,
+    string? Location,       // Legacy free-text field; prefer LocationId
     string? Destination,
     Guid? OwnerId,
     string? Tags,
-    Guid? ListId
+    Guid? ListId,
+    Guid? LocationId,
+    Guid? CategoryId
 );

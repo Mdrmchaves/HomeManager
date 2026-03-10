@@ -31,10 +31,12 @@ public class InventoryController : ControllerBase
         return Guid.Parse(userIdClaim);
     }
 
-    // GET: api/inventory/items
+    // GET: api/inventory/items?householdId={guid}&locationId={guid}&category={string}
     [HttpGet("items")]
     public async Task<ActionResult<IEnumerable<InventoryItem>>> GetItems(
-        [FromQuery] Guid? householdId = null
+        [FromQuery] Guid? householdId = null,
+        [FromQuery] Guid? locationId = null,
+        [FromQuery] string? category = null
     )
     {
         var userId = GetUserId();
@@ -42,12 +44,18 @@ public class InventoryController : ControllerBase
         var query = _context
             .InventoryItems.Include(i => i.Owner)
             .Include(i => i.List)
+            .Include(i => i.LocationRef)
+            .Include(i => i.Category)
             .Where(i => i.Household.HouseholdUsers.Any(hu => hu.UserId == userId));
 
         if (householdId.HasValue)
-        {
             query = query.Where(i => i.HouseholdId == householdId.Value);
-        }
+
+        if (locationId.HasValue)
+            query = query.Where(i => i.LocationId == locationId.Value);
+
+        if (!string.IsNullOrEmpty(category))
+            query = query.Where(i => i.Category != null && i.Category.Name == category);
 
         var items = await query.OrderByDescending(i => i.CreatedAt).ToListAsync();
 
@@ -63,6 +71,8 @@ public class InventoryController : ControllerBase
         var item = await _context
             .InventoryItems.Include(i => i.Owner)
             .Include(i => i.List)
+            .Include(i => i.LocationRef)
+            .Include(i => i.Category)
             .Include(i => i.Household)
             .FirstOrDefaultAsync(i =>
                 i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
@@ -96,11 +106,15 @@ public class InventoryController : ControllerBase
             Description = request.Description,
             Value = request.Value,
             PhotoUrl = request.PhotoUrl,
-            Location = request.Location,
+#pragma warning disable CS0618
+            Location = request.Location, // legacy field
+#pragma warning restore CS0618
             Destination = request.Destination,
             OwnerId = request.OwnerId,
             Tags = request.Tags,
             ListId = request.ListId,
+            LocationId = request.LocationId,
+            CategoryId = request.CategoryId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -130,11 +144,15 @@ public class InventoryController : ControllerBase
         item.Description = request.Description ?? item.Description;
         item.Value = request.Value ?? item.Value;
         item.PhotoUrl = request.PhotoUrl ?? item.PhotoUrl;
-        item.Location = request.Location ?? item.Location;
+#pragma warning disable CS0618
+        item.Location = request.Location ?? item.Location; // legacy field
+#pragma warning restore CS0618
         item.Destination = request.Destination ?? item.Destination;
         item.OwnerId = request.OwnerId ?? item.OwnerId;
         item.Tags = request.Tags ?? item.Tags;
         item.ListId = request.ListId ?? item.ListId;
+        item.LocationId = request.LocationId ?? item.LocationId;
+        item.CategoryId = request.CategoryId ?? item.CategoryId;
         item.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

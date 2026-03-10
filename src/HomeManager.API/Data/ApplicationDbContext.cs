@@ -17,6 +17,9 @@ public class ApplicationDbContext : DbContext
     // Inventory
     public DbSet<InventoryItem> InventoryItems { get; set; }
     public DbSet<ItemList> ItemLists { get; set; }
+    public DbSet<Location> Locations { get; set; }
+    public DbSet<Category> Categories { get; set; }
+    public DbSet<PantryItem> PantryItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -49,6 +52,54 @@ public class ApplicationDbContext : DbContext
             .HasOne(i => i.List)
             .WithMany(l => l.Items)
             .HasForeignKey(i => i.ListId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<Location>()
+            .HasOne(l => l.Household)
+            .WithMany(h => h.Locations)
+            .HasForeignKey(l => l.HouseholdId);
+
+        modelBuilder
+            .Entity<Category>()
+            .HasOne(c => c.Household)
+            .WithMany(h => h.Categories)
+            .HasForeignKey(c => c.HouseholdId);
+
+        modelBuilder
+            .Entity<InventoryItem>()
+            .HasOne(i => i.LocationRef)
+            .WithMany(l => l.Items)
+            .HasForeignKey(i => i.LocationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<InventoryItem>()
+            .HasOne(i => i.Category)
+            .WithMany(c => c.Items)
+            .HasForeignKey(i => i.CategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // PantryItem uses .WithMany() (no inverse collection on Location/Category)
+        // to keep those entities clean — pantry items are a separate domain.
+        modelBuilder
+            .Entity<PantryItem>()
+            .HasOne(p => p.Household)
+            .WithMany()
+            .HasForeignKey(p => p.HouseholdId);
+
+        modelBuilder
+            .Entity<PantryItem>()
+            .HasOne(p => p.Location)
+            .WithMany()
+            .HasForeignKey(p => p.LocationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<PantryItem>()
+            .HasOne(p => p.Category)
+            .WithMany()
+            .HasForeignKey(p => p.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

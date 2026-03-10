@@ -82,3 +82,9 @@ src/environments/environment.prod.ts
 src/environments/environment.development.ts
 
 GEMINI/
+
+# Analysis/planning docs
+ENDPOINT_GAP_ANALYSIS.md
+
+# Claude Code local config
+.claude/

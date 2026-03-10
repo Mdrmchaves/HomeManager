@@ -1,3 +1,15 @@
+export interface CategoryRef {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface LocationRef {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
 export interface InventoryItem {
   id: string;
   householdId: string;
@@ -7,7 +19,9 @@ export interface InventoryItem {
   photoUrl?: string;
   location?: string;
   locationId?: string;
-  category?: string;
+  locationRef?: LocationRef;
+  category?: CategoryRef;
+  categoryId?: string;
   destination?: 'Undecided' | 'Take' | 'Sell' | 'Donate' | 'Trash';
   ownerId?: string;
   tags?: string[];
@@ -26,7 +40,7 @@ export interface CreateItemRequest {
   photoUrl?: string;
   location?: string;
   locationId?: string;
-  category?: string;
+  categoryId?: string;
   destination?: string;
   ownerId?: string;
   tags?: string;
@@ -40,7 +54,7 @@ export interface UpdateItemRequest {
   photoUrl?: string;
   location?: string;
   locationId?: string;
-  category?: string;
+  categoryId?: string;
   destination?: string;
   ownerId?: string;
   tags?: string;

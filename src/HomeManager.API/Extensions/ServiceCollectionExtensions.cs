@@ -18,10 +18,10 @@ public static class ServiceCollectionExtensions
     {
         // Application Services
         services.AddScoped<IUserSyncService, UserSyncService>();
-
-        // Add more services here as we create them
-        // services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IHouseholdService, HouseholdService>();
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IPantryService, PantryService>();
 
         return services;
     }

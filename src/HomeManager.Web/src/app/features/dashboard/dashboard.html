@@ -25,7 +25,7 @@
           />
           <app-summary-widget
             label="Em Falta"
-            [value]="lowStockCount.toString()"
+            [value]="((lowStockCount$ | async) ?? 0).toString()"
             subtitle="Artigos na despensa"
             link="/inventory"
             theme="amber"

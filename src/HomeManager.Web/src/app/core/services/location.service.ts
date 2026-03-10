@@ -1,25 +1,23 @@
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map } from 'rxjs';
+import { environment } from '../../../environments/environment';
 import { Location } from '../models/location.model';
-import { MOCK_LOCATIONS } from '../mock/inventory.mock';
+import { ApiResponse } from '../models/api-response.model';
 
 @Injectable({ providedIn: 'root' })
 export class LocationService {
-  private locations: Location[] = MOCK_LOCATIONS.map(l => ({
-    ...l,
-    householdId: 'mock-household',
-  }));
+  constructor(private http: HttpClient) {}
 
-  getLocations(): Location[] {
-    return this.locations;
+  getLocations(householdId: string): Observable<Location[]> {
+    return this.http
+      .get<ApiResponse<Location[]>>(`${environment.apiUrl}/households/${householdId}/locations`)
+      .pipe(map(r => r.data ?? []));
   }
 
-  addLocation(name: string, householdId: string): Location {
-    const loc: Location = {
-      id: `loc-${Date.now()}`,
-      name: name.trim(),
-      householdId,
-    };
-    this.locations = [...this.locations, loc];
-    return loc;
+  addLocation(name: string, householdId: string, icon?: string): Observable<Location> {
+    return this.http
+      .post<ApiResponse<Location>>(`${environment.apiUrl}/households/${householdId}/locations`, { name, icon })
+      .pipe(map(r => r.data));
   }
 }

@@ -20,7 +20,7 @@ interface NavItem {
   templateUrl: './app-shell.html'
 })
 export class AppShellComponent implements OnInit {
-  households$!: Observable<Household[]>;
+  households: Household[] = [];
   selectedHousehold$!: Observable<Household | null>;
   userEmail = '';
   userName = '';
@@ -61,7 +61,9 @@ export class AppShellComponent implements OnInit {
     this.userName = user?.user_metadata?.['name'] ?? user?.email?.split('@')[0] ?? 'Utilizador';
 
     this.selectedHousehold$ = this.householdService.selectedHousehold$;
-    this.households$ = this.householdService.getMyHouseholds();
+    this.householdService.getMyHouseholds().subscribe(households => {
+      this.households = households;
+    });
   }
 
   selectHousehold(household: Household): void {

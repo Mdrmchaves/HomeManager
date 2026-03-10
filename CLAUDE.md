@@ -277,6 +277,7 @@ Npgsql 10.0.0 throws `ObjectDisposedException: ManualResetEventSlim` on `SaveCha
 - **Tailwind v4 critical**: config must be `postcss.config.json` (not `.js`/`.mjs`). The `@angular/build:application` esbuild builder only reads JSON PostCSS configs. Built-in Tailwind support is v3 API — must use `@tailwindcss/postcss`.
 - **Mock data** is isolated in `core/mock/` — trivially swappable with real service calls.
 - **`combineLatest` with individual `catchError`**: when loading multiple resources in parallel via `combineLatest`, wrap each observable with `.pipe(catchError(() => of([])))`. This prevents a single failing request from blocking `combineLatest` from emitting and leaving the UI stuck in a loading state indefinitely.
+- **`HouseholdService.getMyHouseholds()` is called eagerly in `AppShellComponent.ngOnInit()`**: this ensures `selectedHousehold$` is populated on any entry route, including direct navigation to `/inventory` and page refreshes. The result is stored in a plain `households: Household[]` array (not a cold Observable) so the dropdown re-render doesn't trigger a second HTTP call.
 
 ### Middleware Pipeline Order
 

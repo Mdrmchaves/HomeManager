@@ -25,7 +25,72 @@ _Generated after the frontend rewrite (March 2026)._
 
 ## 2. New Endpoints Needed
 
-### 2.1 Inventory Categories
+### 2.1 Location CRUD
+
+Locations are first-class entities that items belong to (replacing the loose `location` string field on `InventoryItem`). The frontend now groups items by Location in both Pertences and Despensa tabs.
+
+**`GET /api/households/{id}/locations`**
+**Priority: Required** — Inventory page groups all items by location. Currently uses mock data (`LocationService`).
+
+```typescript
+// Response
+interface Location {
+  id: string;
+  householdId: string;
+  name: string;
+  icon?: string;
+  createdAt: string;
+}
+```
+
+**`POST /api/households/{id}/locations`**
+**Priority: Required** — "Novo Local" creation flow in Inventory page.
+
+```typescript
+interface CreateLocationRequest {
+  name: string;
+  icon?: string;
+}
+```
+
+**`PUT /api/locations/{id}`**
+**Priority: Nice-to-have** — Edit location name/icon via the location card 3-dot menu.
+
+```typescript
+interface UpdateLocationRequest {
+  name?: string;
+  icon?: string;
+}
+```
+
+**`DELETE /api/locations/{id}`**
+**Priority: Nice-to-have** — When a location is deleted, items with that `locationId` should have `locationId` set to `null` (appear in "Sem Local" group).
+
+---
+
+### 2.2 Item Model Migration: `location` string → `locationId` FK
+
+The `InventoryItem` currently has a `location` field (plain string). This must be replaced/extended with a proper foreign key.
+
+| Layer | Change needed |
+|-------|--------------|
+| DB migration | Add `location_id UUID REFERENCES inventory.locations(id) ON DELETE SET NULL` to `inventory.items` |
+| `InventoryItem` entity | Add `LocationId Guid?` + navigation property `Location Location?` |
+| `CreateItemRequest` / `UpdateItemRequest` DTOs | Add `LocationId?: string` field; deprecate plain `Location` string |
+| `InventoryController` | Expose `locationId` in item responses |
+
+The frontend already uses `locationId` on its item models (`CreateItemRequest`, `UpdateItemRequest`, `InventoryItem`).
+
+---
+
+### 2.3 Inventory Filter by Location and Category
+
+**`GET /api/inventory/items?householdId={guid}&locationId={guid}&category={string}`**
+**Priority: Nice-to-have** — The frontend currently filters client-side. Server-side filtering improves performance at scale.
+
+---
+
+### 2.4 Inventory Categories
 
 **`GET /api/inventory/categories`**
 **Priority: Required** — Pertences tab groups items by category. Currently the frontend assigns categories using the first item `tag` as a fallback, which is fragile.
@@ -60,7 +125,7 @@ interface CreateCategoryRequest {
 
 ---
 
-### 2.2 Inventory Item — Category Assignment
+### 2.5 Inventory Item — Category Assignment
 
 Currently `InventoryItem` has a `listId` (FK to `inventory.lists`) and `tags` (JSONB). For proper categorisation, the item needs a `categoryId` field, or the `ListId` / `tags` approach needs to be consistently documented as the category mechanism.
 
@@ -77,7 +142,7 @@ interface UpdateItemRequest {
 
 ---
 
-### 2.3 Despensa (Pantry) Items
+### 2.6 Despensa (Pantry) Items
 
 The Despensa tab currently uses **100% mock data**. It needs its own data model, separate from `InventoryItem` (which maps to "Pertences"). Alternatively, `InventoryItem` can be extended with pantry-specific fields.
 
@@ -96,7 +161,7 @@ minQuantity?: number;  // threshold below which status = "low"
 
 ---
 
-### 2.4 Dashboard — Timeline / Upcoming Actions
+### 2.7 Dashboard — Timeline / Upcoming Actions
 
 The Timeline widget is currently **100% mock data**.
 
@@ -124,7 +189,7 @@ This endpoint would aggregate:
 
 ---
 
-### 2.5 Dashboard — Summary Stats
+### 2.8 Dashboard — Summary Stats
 
 The "Em Falta" (low stock count) in the Dashboard summary widget is **mock data**.
 
@@ -143,7 +208,7 @@ interface DashboardSummary {
 
 ---
 
-### 2.6 User Profile
+### 2.9 User Profile
 
 Currently the frontend reads the user's `name` directly from the Supabase JWT `user_metadata.name`. There is no endpoint to update the user profile.
 
@@ -160,7 +225,7 @@ interface UpdateUserRequest {
 
 ---
 
-### 2.7 Household Members
+### 2.10 Household Members
 
 No endpoint currently exposes the household member list in a usable way. The `GET /api/household/{id}` returns `householdUsers[]` but it's not surfaced in the UI.
 

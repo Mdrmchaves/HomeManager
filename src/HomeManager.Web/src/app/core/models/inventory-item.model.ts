@@ -6,6 +6,8 @@ export interface InventoryItem {
   value?: number;
   photoUrl?: string;
   location?: string;
+  locationId?: string;
+  category?: string;
   destination?: 'Undecided' | 'Take' | 'Sell' | 'Donate' | 'Trash';
   ownerId?: string;
   tags?: string[];
@@ -23,6 +25,8 @@ export interface CreateItemRequest {
   value?: number;
   photoUrl?: string;
   location?: string;
+  locationId?: string;
+  category?: string;
   destination?: string;
   ownerId?: string;
   tags?: string;
@@ -35,6 +39,8 @@ export interface UpdateItemRequest {
   value?: number;
   photoUrl?: string;
   location?: string;
+  locationId?: string;
+  category?: string;
   destination?: string;
   ownerId?: string;
   tags?: string;

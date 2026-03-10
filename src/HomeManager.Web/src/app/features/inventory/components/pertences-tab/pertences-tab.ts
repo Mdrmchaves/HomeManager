@@ -1,16 +1,15 @@
-import { Component, OnInit } from '@angular/core';
-import { HouseholdService } from '../../../../core/services/household.service';
-import { InventoryService } from '../../../../core/services/inventory.service';
-import { InventoryItem } from '../../../../core/models/inventory-item.model';
+import { Component } from '@angular/core';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
-import { MOCK_PERTENCES_CATEGORIES } from '../../../../core/mock/inventory.mock';
+import { LocationService } from '../../../../core/services/location.service';
+import { Location } from '../../../../core/models/location.model';
+import { MOCK_PERTENCES_ITEMS, MockPertencesItem } from '../../../../core/mock/inventory.mock';
 
-interface CategoryGroup {
-  name: string;
-  items: InventoryItem[];
-  collapsed: boolean;
+interface LocationGroup {
+  locationId: string | null;
+  locationName: string;
+  items: MockPertencesItem[];
 }
 
 @Component({
@@ -19,70 +18,61 @@ interface CategoryGroup {
   imports: [StatusDotComponent, SearchInputComponent, FabComponent],
   templateUrl: './pertences-tab.html'
 })
-export class PertencesTabComponent implements OnInit {
-  allItems: InventoryItem[] = [];
-  categories: CategoryGroup[] = [];
+export class PertencesTabComponent {
+  allItems = MOCK_PERTENCES_ITEMS;
+  locations: Location[] = [];
   searchQuery = '';
-  loading = true;
-  error = '';
+  selectedCategory = 'Todos';
+  collapsedLocations = new Set<string>();
+  showNewLocationModal = false;
 
-  constructor(
-    private householdService: HouseholdService,
-    private inventoryService: InventoryService
-  ) {}
+  constructor(private locationService: LocationService) {
+    this.locations = locationService.getLocations();
+  }
 
-  ngOnInit(): void {
-    const household = this.householdService.getSelectedHousehold();
-    if (!household) {
-      this.loading = false;
-      return;
+  get allCategories(): string[] {
+    const cats = new Set(this.allItems.map(i => i.category));
+    return ['Todos', ...Array.from(cats).sort()];
+  }
+
+  private get filteredItems(): MockPertencesItem[] {
+    let items = this.allItems;
+    if (this.searchQuery.trim()) {
+      const q = this.searchQuery.toLowerCase();
+      items = items.filter(i => i.name.toLowerCase().includes(q));
     }
+    if (this.selectedCategory !== 'Todos') {
+      items = items.filter(i => i.category === this.selectedCategory);
+    }
+    return items;
+  }
 
-    this.inventoryService.getItems(household.id).subscribe({
-      next: items => {
-        this.allItems = items;
-        this.buildCategories(items);
-        this.loading = false;
-      },
-      error: () => {
-        this.error = 'Erro ao carregar os pertences.';
-        this.loading = false;
+  get locationGroups(): LocationGroup[] {
+    const groups: LocationGroup[] = [];
+    for (const loc of this.locations) {
+      const items = this.filteredItems.filter(i => i.locationId === loc.id);
+      if (items.length > 0) {
+        groups.push({ locationId: loc.id, locationName: loc.name, items });
       }
-    });
-  }
-
-  private buildCategories(items: InventoryItem[]): void {
-    const tagMap: Record<string, InventoryItem[]> = {};
-
-    for (const item of items) {
-      const tags = item.tags;
-      const category = Array.isArray(tags) && tags.length > 0 ? tags[0] : 'Outros';
-      if (!tagMap[category]) tagMap[category] = [];
-      tagMap[category].push(item);
     }
-
-    this.categories = [
-      ...MOCK_PERTENCES_CATEGORIES.filter(c => tagMap[c]).map(c => ({
-        name: c,
-        items: tagMap[c],
-        collapsed: false
-      })),
-      ...Object.keys(tagMap)
-        .filter(c => !MOCK_PERTENCES_CATEGORIES.includes(c))
-        .map(c => ({ name: c, items: tagMap[c], collapsed: false }))
-    ];
+    const noLoc = this.filteredItems.filter(i => !i.locationId);
+    if (noLoc.length > 0) {
+      groups.push({ locationId: null, locationName: 'Sem Local', items: noLoc });
+    }
+    return groups;
   }
 
-  get filteredCategories(): CategoryGroup[] {
-    if (!this.searchQuery.trim()) return this.categories;
-    const q = this.searchQuery.toLowerCase();
-    return this.categories
-      .map(c => ({ ...c, items: c.items.filter(i => i.name.toLowerCase().includes(q)) }))
-      .filter(c => c.items.length > 0);
+  toggleLocation(locationId: string | null): void {
+    const key = locationId ?? '__sem_local__';
+    if (this.collapsedLocations.has(key)) {
+      this.collapsedLocations.delete(key);
+    } else {
+      this.collapsedLocations.add(key);
+    }
   }
 
-  toggleCategory(category: CategoryGroup): void {
-    category.collapsed = !category.collapsed;
+  isCollapsed(locationId: string | null): boolean {
+    return this.collapsedLocations.has(locationId ?? '__sem_local__');
   }
 
   formatValue(value: number | undefined): string {
@@ -90,7 +80,29 @@ export class PertencesTabComponent implements OnInit {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
   }
 
-  getItemStatus(item: InventoryItem): 'ok' | 'warning' {
-    return item.destination === 'Trash' || item.destination === 'Donate' ? 'warning' : 'ok';
+  isWarning(item: MockPertencesItem): boolean {
+    return item.destination === 'Sell' || item.destination === 'Donate' || item.destination === 'Trash';
+  }
+
+  chipClass(cat: string): string {
+    const base = 'text-sm font-medium px-4 py-1.5 rounded-full whitespace-nowrap transition-colors flex-shrink-0';
+    return cat === this.selectedCategory
+      ? `${base} bg-emerald-600 text-white`
+      : `${base} bg-stone-100 text-stone-600 hover:bg-stone-200`;
+  }
+
+  openNewLocationModal(): void {
+    this.showNewLocationModal = true;
+  }
+
+  closeNewLocationModal(): void {
+    this.showNewLocationModal = false;
+  }
+
+  createLocation(name: string): void {
+    if (!name.trim()) return;
+    this.locationService.addLocation(name, 'mock-household');
+    this.locations = this.locationService.getLocations();
+    this.showNewLocationModal = false;
   }
 }

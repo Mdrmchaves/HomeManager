@@ -12,9 +12,6 @@
         }
       </div>
 
-      <!-- Timeline -->
-      <app-timeline-widget />
-
       <!-- Summary widgets -->
       @if (items$ | async; as items) {
         <div class="grid grid-cols-2 gap-4">
@@ -41,6 +38,9 @@
           <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
         </div>
       }
+
+      <!-- Timeline -->
+      <app-timeline-widget />
 
     </div>
   }

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { HouseholdService } from '../../../core/services/household.service';
 import { Household } from '../../../core/models/household.model';
+import { SafeHtmlPipe } from '../../pipes/safe-html.pipe';
 
 interface NavItem {
   path: string;
@@ -15,7 +16,7 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe, SafeHtmlPipe],
   templateUrl: './app-shell.html'
 })
 export class AppShellComponent implements OnInit {

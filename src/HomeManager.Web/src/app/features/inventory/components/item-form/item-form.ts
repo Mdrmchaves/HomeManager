@@ -53,6 +53,7 @@ export class ItemFormComponent implements OnInit {
     this.isEdit = !!this.item;
     this.form = this.fb.group({
       name: [this.item?.name ?? '', Validators.required],
+      quantity: [this.item?.quantity ?? null],
       locationId: [this.item?.locationId ?? this.preselectedLocationId ?? ''],
       categoryId: [this.item?.categoryId ?? ''],
       value: [this.item?.value ?? ''],
@@ -111,6 +112,7 @@ export class ItemFormComponent implements OnInit {
       if (this.isEdit && this.item) {
         const payload: UpdateItemRequest = {
           name: v.name,
+          quantity: v.quantity ? Number(v.quantity) : undefined,
           locationId: v.locationId || undefined,
           categoryId: v.categoryId || undefined,
           value: valueNum,
@@ -123,6 +125,7 @@ export class ItemFormComponent implements OnInit {
         const payload: CreateItemRequest = {
           householdId: this.householdId,
           name: v.name,
+          quantity: v.quantity ? Number(v.quantity) : undefined,
           locationId: v.locationId || undefined,
           categoryId: v.categoryId || undefined,
           value: valueNum,

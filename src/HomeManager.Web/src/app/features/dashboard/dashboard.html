@@ -1,5 +1,20 @@
-@if (!hasHouseholds()) {
+@if (householdsLoading()) {
+  <!-- Skeleton inicial — aguarda saber se tem household -->
+  <div class="max-w-2xl mx-auto space-y-6">
+    <div class="space-y-2">
+      <div class="h-8 w-48 bg-stone-200 rounded-xl animate-pulse"></div>
+      <div class="h-4 w-32 bg-stone-200 rounded-lg animate-pulse"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
+      <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
+    </div>
+    <div class="bg-white rounded-2xl border border-stone-200 p-5 h-48 animate-pulse bg-stone-100"></div>
+  </div>
+
+} @else if (!hasHouseholds()) {
   <app-household-setup />
+
 } @else {
   <div class="max-w-2xl mx-auto space-y-6">
 
@@ -13,22 +28,27 @@
 
     <!-- Summary widgets -->
     <div class="grid grid-cols-2 gap-4">
-      <app-summary-widget
-        label="Património"
-        [value]="totalValue()"
-        subtitle="Valor estimado dos pertences"
-        link="/inventory"
-        theme="emerald"
-        [iconSvg]="patrimonioIcon"
-      />
-      <app-summary-widget
-        label="Em Falta"
-        [value]="lowStockCount().toString()"
-        subtitle="Artigos na despensa"
-        link="/inventory"
-        theme="amber"
-        [iconSvg]="emFaltaIcon"
-      />
+      @if (dataLoading()) {
+        <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
+        <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
+      } @else {
+        <app-summary-widget
+          label="Património"
+          [value]="totalValue()"
+          subtitle="Valor estimado dos pertences"
+          link="/inventory"
+          theme="emerald"
+          [iconSvg]="patrimonioIcon"
+        />
+        <app-summary-widget
+          label="Em Falta"
+          [value]="lowStockCount().toString()"
+          subtitle="Artigos na despensa"
+          link="/inventory"
+          theme="amber"
+          [iconSvg]="emFaltaIcon"
+        />
+      }
     </div>
 
     <!-- Timeline -->

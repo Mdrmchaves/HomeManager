@@ -115,6 +115,7 @@ public class InventoryController : ControllerBase
             ListId = request.ListId,
             LocationId = request.LocationId,
             CategoryId = request.CategoryId,
+            Quantity = request.Quantity,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -153,6 +154,7 @@ public class InventoryController : ControllerBase
         item.ListId = request.ListId ?? item.ListId;
         item.LocationId = request.LocationId ?? item.LocationId;
         item.CategoryId = request.CategoryId ?? item.CategoryId;
+        item.Quantity = request.Quantity ?? item.Quantity;
         item.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();

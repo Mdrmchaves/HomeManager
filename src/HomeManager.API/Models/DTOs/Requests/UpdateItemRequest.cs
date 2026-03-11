@@ -11,5 +11,6 @@ public record UpdateItemRequest(
     string? Tags,
     Guid? ListId,
     Guid? LocationId,
-    Guid? CategoryId
+    Guid? CategoryId,
+    int? Quantity
 );

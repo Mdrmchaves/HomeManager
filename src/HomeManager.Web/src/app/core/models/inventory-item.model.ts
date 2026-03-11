@@ -22,6 +22,7 @@ export interface InventoryItem {
   locationRef?: LocationRef;
   category?: CategoryRef;
   categoryId?: string;
+  quantity?: number;
   destination?: 'Undecided' | 'Take' | 'Sell' | 'Donate' | 'Trash';
   ownerId?: string;
   tags?: string[];
@@ -41,6 +42,7 @@ export interface CreateItemRequest {
   location?: string;
   locationId?: string;
   categoryId?: string;
+  quantity?: number;
   destination?: string;
   ownerId?: string;
   tags?: string;
@@ -55,6 +57,7 @@ export interface UpdateItemRequest {
   location?: string;
   locationId?: string;
   categoryId?: string;
+  quantity?: number;
   destination?: string;
   ownerId?: string;
   tags?: string;

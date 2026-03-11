@@ -53,6 +53,9 @@ public class InventoryItem
     [Column("tags", TypeName = "jsonb")]
     public string? Tags { get; set; } // JSON array como string
 
+    [Column("quantity")]
+    public int? Quantity { get; set; }
+
     [Column("list_id")]
     public Guid? ListId { get; set; }
 

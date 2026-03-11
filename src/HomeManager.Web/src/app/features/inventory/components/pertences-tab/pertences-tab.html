@@ -141,7 +141,12 @@
                        [class.bg-amber-50]="isWarning(item)">
                     <app-status-dot [status]="isWarning(item) ? 'warning' : 'ok'" />
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-stone-800 truncate">{{ item.name }}</p>
+                      <p class="text-sm font-medium text-stone-800 truncate">
+                        {{ item.name }}
+                        @if (item.quantity && item.quantity > 1) {
+                          <span class="text-stone-400 font-normal"> ×{{ item.quantity }}</span>
+                        }
+                      </p>
                       <div class="flex items-center gap-2 mt-0.5">
                         @if (item.category?.name) {
                           <span class="text-xs text-stone-400 bg-stone-100 px-2 py-0.5 rounded-full">{{ item.category?.name }}</span>

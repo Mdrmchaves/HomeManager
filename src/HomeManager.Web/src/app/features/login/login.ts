@@ -17,6 +17,7 @@ export class LoginComponent {
   loading = false;
   errorMessage = '';
   successMessage = '';
+  showPassword = false;
 
   constructor(private supabase: SupabaseService, private router: Router) {}
 

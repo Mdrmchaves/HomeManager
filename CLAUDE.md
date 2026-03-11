@@ -14,7 +14,7 @@ HomeManager is a Portuguese-language household management web app. It lets membe
 - Auth (Supabase), household creation/joining, and the Pertences inventory are fully functional end-to-end.
 - Location and Category CRUD endpoints are implemented on the backend and wired to the frontend.
 - The Despensa tab has a working backend (PantryController) but the frontend still renders mock data.
-- Dashboard summary widget uses partial real data (total inventory value); Timeline widget is 100% mock.
+- Dashboard distingue `householdsLoading` (skeleton inicial até saber se tem household) de `dataLoading` (skeleton dos widgets enquanto carrega valores). Elimina o flash do HouseholdSetupComponent durante o carregamento inicial. Summary widget usa dados reais parciais (valor total do inventário); Timeline widget é 100% mock.
 - Tasks and Budget pages are placeholder stubs (routes exist, no real UI).
 
 ---
@@ -358,6 +358,7 @@ Serilog Request Logging
 | `location` | varchar(255) | **Deprecated** — legacy free-text; use `location_id` |
 | `location_id` | UUID FK | → `inventory.locations.id` ON DELETE SET NULL |
 | `category_id` | UUID FK | → `inventory.categories.id` ON DELETE SET NULL |
+| `quantity` | integer | Nullable — number of units (e.g. 6 for a set of 6 knives) |
 | `destination` | varchar(50) | `Undecided\|Take\|Sell\|Donate\|Trash` (Pertences-only) |
 | `owner_id` | UUID FK | → `shared.users.id` (nullable) |
 | `tags` | jsonb | Stored as stringified JSON array |
@@ -460,7 +461,7 @@ Returns raw `InventoryItem` objects (no `ApiResponse<T>` wrapper).
 ```
 householdId, name, description?, value?, photoUrl?,
 location? (legacy), destination?, ownerId?, tags? (JSONB string),
-listId?, locationId?, categoryId?
+listId?, locationId?, categoryId?, quantity? (integer)
 ```
 
 ---
@@ -545,6 +546,8 @@ Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboa
 
 #### DashboardComponent (`features/dashboard/`) — partial real data, signals
 - Uses `toSignal()` throughout — no `OnInit`, no `AsyncPipe`, no memory leak
+- `householdsLoading` signal: `true` until `getMyHouseholds()` emits (shows skeleton, prevents flash of `HouseholdSetupComponent`)
+- `dataLoading` signal: `true` while items load after household is selected (shows widget skeletons)
 - `households` / `selectedHousehold` / `itemsStream` / `lowStockStream` are all signals
 - `totalValue` and `lowStockCount` are `computed()` from their respective streams
 - Shows `SummaryWidget`: total Pertences value (real) + low-stock count (real, via `PantryService`)

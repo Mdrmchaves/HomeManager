@@ -13,11 +13,11 @@
 
     <!-- Household Selector -->
     <div class="px-4 py-3 border-b border-stone-200 relative">
-      @if (selectedHousehold$ | async; as household) {
+      @if (selectedHousehold(); as household) {
         <button
           type="button"
           class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl hover:bg-stone-50 text-left transition-colors"
-          (click)="showHouseholdMenu = !showHouseholdMenu"
+          (click)="showHouseholdMenu.set(!showHouseholdMenu())"
         >
           <div class="min-w-0">
             <p class="text-xs text-stone-500 mb-0.5">Agregado</p>
@@ -33,9 +33,9 @@
         </div>
       }
 
-      @if (showHouseholdMenu) {
+      @if (showHouseholdMenu()) {
         <div class="absolute top-full left-4 right-4 bg-white border border-stone-200 rounded-xl shadow-md z-50 py-1 mt-1">
-          @for (h of households; track h.id) {
+          @for (h of households(); track h.id) {
             <button
               type="button"
               class="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors"
@@ -94,7 +94,7 @@
         <div class="w-7 h-7 bg-emerald-600 rounded-lg flex items-center justify-center">
           <span class="text-white text-xs font-bold">H</span>
         </div>
-        @if (selectedHousehold$ | async; as household) {
+        @if (selectedHousehold(); as household) {
           <span class="text-sm font-semibold text-stone-800">{{ household.name }}</span>
         } @else {
           <span class="text-sm font-semibold text-stone-800">HomeManager</span>

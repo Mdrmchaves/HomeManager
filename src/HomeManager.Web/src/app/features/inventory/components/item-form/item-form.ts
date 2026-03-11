@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { InventoryItem, CreateItemRequest, UpdateItemRequest } from '../../../../core/models/inventory-item.model';
@@ -10,6 +10,7 @@ import { SupabaseService } from '../../../../core/services/supabase.service';
 @Component({
   selector: 'app-item-form',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule],
   templateUrl: './item-form.html'
 })
@@ -44,7 +45,8 @@ export class ItemFormComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private inventoryService: InventoryService,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -65,6 +67,7 @@ export class ItemFormComponent implements OnInit {
 
   private async loadExistingPhoto(photoPath: string): Promise<void> {
     this.loadingPhoto = true;
+    this.cdr.markForCheck();
     try {
       const urls = await this.supabaseService.createSignedUrls([photoPath]);
       this.previewUrl = urls[photoPath] ?? null;
@@ -72,6 +75,7 @@ export class ItemFormComponent implements OnInit {
       // preview not critical
     } finally {
       this.loadingPhoto = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -83,6 +87,7 @@ export class ItemFormComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = e => {
       this.previewUrl = e.target?.result as string;
+      this.cdr.markForCheck();
     };
     reader.readAsDataURL(file);
   }
@@ -129,10 +134,12 @@ export class ItemFormComponent implements OnInit {
       }
 
       this.saving = false;
+      this.cdr.markForCheck();
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao guardar. Tenta novamente.';
       this.saving = false;
+      this.cdr.markForCheck();
     }
   }
 
@@ -159,10 +166,12 @@ export class ItemFormComponent implements OnInit {
         }
       }
       this.deleting = false;
+      this.cdr.markForCheck();
       this.saved.emit();
     } catch {
       this.error = 'Ocorreu um erro ao apagar. Tenta novamente.';
       this.deleting = false;
+      this.cdr.markForCheck();
     }
   }
 

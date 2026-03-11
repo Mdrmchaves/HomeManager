@@ -1,7 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, signal, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { AsyncPipe } from '@angular/common';
-import { Observable } from 'rxjs';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { HouseholdService } from '../../../core/services/household.service';
 import { Household } from '../../../core/models/household.model';
@@ -16,15 +15,26 @@ interface NavItem {
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, AsyncPipe, SafeHtmlPipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, SafeHtmlPipe],
   templateUrl: './app-shell.html'
 })
-export class AppShellComponent implements OnInit {
-  households: Household[] = [];
-  selectedHousehold$!: Observable<Household | null>;
-  userEmail = '';
-  userName = '';
-  showHouseholdMenu = false;
+export class AppShellComponent {
+  private supabase = inject(SupabaseService);
+  private householdService = inject(HouseholdService);
+  private router = inject(Router);
+
+  showHouseholdMenu = signal(false);
+
+  private user = this.supabase.getCurrentUser();
+  userEmail = this.user?.email ?? '';
+  userName = this.user?.user_metadata?.['name'] ?? this.user?.email?.split('@')[0] ?? 'Utilizador';
+
+  households = toSignal(
+    this.householdService.getMyHouseholds(),
+    { initialValue: [] as Household[] }
+  );
+
+  selectedHousehold = toSignal(this.householdService.selectedHousehold$);
 
   navItems: NavItem[] = [
     {
@@ -49,26 +59,9 @@ export class AppShellComponent implements OnInit {
     }
   ];
 
-  constructor(
-    private supabase: SupabaseService,
-    private householdService: HouseholdService,
-    private router: Router
-  ) {}
-
-  ngOnInit(): void {
-    const user = this.supabase.getCurrentUser();
-    this.userEmail = user?.email ?? '';
-    this.userName = user?.user_metadata?.['name'] ?? user?.email?.split('@')[0] ?? 'Utilizador';
-
-    this.selectedHousehold$ = this.householdService.selectedHousehold$;
-    this.householdService.getMyHouseholds().subscribe(households => {
-      this.households = households;
-    });
-  }
-
   selectHousehold(household: Household): void {
     this.householdService.selectHousehold(household);
-    this.showHouseholdMenu = false;
+    this.showHouseholdMenu.set(false);
   }
 
   async logout(): Promise<void> {

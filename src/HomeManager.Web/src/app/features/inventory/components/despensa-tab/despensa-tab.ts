@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Subject, combineLatest, of } from 'rxjs';
-import { takeUntil, switchMap } from 'rxjs/operators';
+import { Component, signal, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { switchMap, combineLatest, of, BehaviorSubject } from 'rxjs';
+import { catchError, tap, take } from 'rxjs/operators';
 import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
 import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
 import { FabComponent } from '../../../../shared/components/fab/fab';
@@ -22,94 +23,95 @@ interface LocationGroup {
   imports: [StatusDotComponent, SearchInputComponent, FabComponent],
   templateUrl: './despensa-tab.html'
 })
-export class DespensaTabComponent implements OnInit, OnDestroy {
-  allItems: PantryItem[] = [];
-  locations: Location[] = [];
-  searchQuery = '';
-  selectedCategory = 'Todos';
-  collapsedLocations = new Set<string>();
-  showNewLocationModal = false;
-  loading = false;
+export class DespensaTabComponent {
+  private householdService = inject(HouseholdService);
+  private pantryService = inject(PantryService);
+  private locationService = inject(LocationService);
 
-  private householdId: string | null = null;
-  private destroy$ = new Subject<void>();
+  searchQuery = signal('');
+  selectedCategory = signal('Todos');
+  collapsedLocations = signal(new Set<string>());
+  showNewLocationModal = signal(false);
+  initialLoading = signal(true);
+  reloading = signal(false);
 
-  constructor(
-    private householdService: HouseholdService,
-    private pantryService: PantryService,
-    private locationService: LocationService
-  ) {}
+  private reloadTrigger$ = new BehaviorSubject<void>(undefined);
 
-  ngOnInit(): void {
-    this.householdService.selectedHousehold$.pipe(
-      takeUntil(this.destroy$),
-      switchMap(household => {
-        if (!household) return of({ items: [] as PantryItem[], locations: [] as Location[] });
-        this.householdId = household.id;
-        this.loading = true;
+  private dataStream = toSignal(
+    combineLatest([
+      this.householdService.selectedHousehold$,
+      this.reloadTrigger$
+    ]).pipe(
+      switchMap(([household]) => {
+        if (!household) {
+          return of({ items: [] as PantryItem[], locations: [] as Location[] });
+        }
         return combineLatest({
-          items: this.pantryService.getItems(household.id),
-          locations: this.locationService.getLocations(household.id)
+          items: this.pantryService.getItems(household.id).pipe(
+            catchError(() => of([] as PantryItem[]))
+          ),
+          locations: this.locationService.getLocations(household.id).pipe(
+            catchError(() => of([] as Location[]))
+          )
         });
+      }),
+      tap(() => {
+        this.initialLoading.set(false);
+        this.reloading.set(false);
       })
-    ).subscribe({
-      next: ({ items, locations }) => {
-        this.allItems = items;
-        this.locations = locations;
-        this.loading = false;
-      },
-      error: () => { this.loading = false; }
-    });
-  }
+    ),
+    { initialValue: { items: [] as PantryItem[], locations: [] as Location[] } }
+  );
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
+  private allItems = computed(() => this.dataStream().items);
+  locations = computed(() => this.dataStream().locations);
 
-  get allCategories(): string[] {
-    const cats = new Set(this.allItems.map(i => i.categoryName).filter(Boolean) as string[]);
-    return ['Todos', ...Array.from(cats).sort()];
-  }
+  private selectedHousehold = toSignal(this.householdService.selectedHousehold$);
+  householdId = computed(() => this.selectedHousehold()?.id ?? '');
 
-  private get filteredItems(): PantryItem[] {
-    let items = this.allItems;
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.toLowerCase();
-      items = items.filter(i => i.name.toLowerCase().includes(q));
-    }
-    if (this.selectedCategory !== 'Todos') {
-      items = items.filter(i => i.categoryName === this.selectedCategory);
-    }
+  private filteredItems = computed(() => {
+    let items = this.allItems();
+    const q = this.searchQuery().trim().toLowerCase();
+    if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
+    const cat = this.selectedCategory();
+    if (cat !== 'Todos') items = items.filter(i => i.categoryName === cat);
     return items;
-  }
+  });
 
-  get locationGroups(): LocationGroup[] {
+  locationGroups = computed((): LocationGroup[] => {
     const groups: LocationGroup[] = [];
-    for (const loc of this.locations) {
-      const items = this.filteredItems.filter(i => i.locationId === loc.id);
-      if (items.length > 0) {
-        groups.push({ locationId: loc.id, locationName: loc.name, items });
-      }
+    for (const loc of this.locations()) {
+      const items = this.filteredItems().filter(i => i.locationId === loc.id);
+      groups.push({ locationId: loc.id, locationName: loc.name, items });
     }
-    const noLoc = this.filteredItems.filter(i => !i.locationId);
+    const noLoc = this.filteredItems().filter(i => !i.locationId);
     if (noLoc.length > 0) {
       groups.push({ locationId: null, locationName: 'Sem Local', items: noLoc });
     }
     return groups;
+  });
+
+  allCategories = computed((): string[] => {
+    const cats = new Set(this.allItems().map(i => i.categoryName).filter(Boolean) as string[]);
+    return ['Todos', ...Array.from(cats).sort()];
+  });
+
+  reloadData(): void {
+    this.reloading.set(true);
+    this.reloadTrigger$.next();
   }
 
   toggleLocation(locationId: string | null): void {
     const key = locationId ?? '__sem_local__';
-    if (this.collapsedLocations.has(key)) {
-      this.collapsedLocations.delete(key);
-    } else {
-      this.collapsedLocations.add(key);
-    }
+    this.collapsedLocations.update(set => {
+      const next = new Set(set);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   }
 
   isCollapsed(locationId: string | null): boolean {
-    return this.collapsedLocations.has(locationId ?? '__sem_local__');
+    return this.collapsedLocations().has(locationId ?? '__sem_local__');
   }
 
   isLow(item: PantryItem): boolean {
@@ -118,24 +120,17 @@ export class DespensaTabComponent implements OnInit, OnDestroy {
 
   chipClass(cat: string): string {
     const base = 'text-sm font-medium px-4 py-1.5 rounded-full whitespace-nowrap transition-colors flex-shrink-0';
-    return cat === this.selectedCategory
+    return cat === this.selectedCategory()
       ? `${base} bg-emerald-600 text-white`
       : `${base} bg-stone-100 text-stone-600 hover:bg-stone-200`;
   }
 
-  openNewLocationModal(): void {
-    this.showNewLocationModal = true;
-  }
-
-  closeNewLocationModal(): void {
-    this.showNewLocationModal = false;
-  }
-
   createLocation(name: string): void {
-    if (!name.trim() || !this.householdId) return;
-    this.locationService.addLocation(name.trim(), this.householdId).subscribe(loc => {
-      this.locations = [...this.locations, loc];
-      this.showNewLocationModal = false;
+    const hid = this.householdId();
+    if (!name.trim() || !hid) return;
+    this.locationService.addLocation(name.trim(), hid).pipe(take(1)).subscribe(() => {
+      this.showNewLocationModal.set(false);
+      this.reloadData();
     });
   }
 }

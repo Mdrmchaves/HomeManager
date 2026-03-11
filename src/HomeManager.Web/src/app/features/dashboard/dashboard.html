@@ -1,47 +1,38 @@
-@if (households$ | async; as households) {
-  @if (households.length === 0) {
-    <app-household-setup />
-  } @else {
-    <div class="max-w-2xl mx-auto space-y-6">
+@if (!hasHouseholds()) {
+  <app-household-setup />
+} @else {
+  <div class="max-w-2xl mx-auto space-y-6">
 
-      <!-- Greeting -->
-      <div>
-        <h1 class="text-2xl font-bold text-stone-800">Olá, {{ userName }}! 👋</h1>
-        @if (selectedHousehold$ | async; as household) {
-          <p class="text-stone-500 mt-1">{{ household.name }}</p>
-        }
-      </div>
-
-      <!-- Summary widgets -->
-      @if (items$ | async; as items) {
-        <div class="grid grid-cols-2 gap-4">
-          <app-summary-widget
-            label="Património"
-            [value]="getTotalValue(items)"
-            subtitle="Valor estimado dos pertences"
-            link="/inventory"
-            theme="emerald"
-            [iconSvg]="patrimonioIcon"
-          />
-          <app-summary-widget
-            label="Em Falta"
-            [value]="((lowStockCount$ | async) ?? 0).toString()"
-            subtitle="Artigos na despensa"
-            link="/inventory"
-            theme="amber"
-            [iconSvg]="emFaltaIcon"
-          />
-        </div>
-      } @else {
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
-          <div class="bg-white rounded-2xl border border-stone-200 p-5 h-28 animate-pulse bg-stone-100"></div>
-        </div>
+    <!-- Greeting -->
+    <div>
+      <h1 class="text-2xl font-bold text-stone-800">Olá, {{ userName }}! 👋</h1>
+      @if (selectedHousehold(); as household) {
+        <p class="text-stone-500 mt-1">{{ household.name }}</p>
       }
-
-      <!-- Timeline -->
-      <app-timeline-widget />
-
     </div>
-  }
+
+    <!-- Summary widgets -->
+    <div class="grid grid-cols-2 gap-4">
+      <app-summary-widget
+        label="Património"
+        [value]="totalValue()"
+        subtitle="Valor estimado dos pertences"
+        link="/inventory"
+        theme="emerald"
+        [iconSvg]="patrimonioIcon"
+      />
+      <app-summary-widget
+        label="Em Falta"
+        [value]="lowStockCount().toString()"
+        subtitle="Artigos na despensa"
+        link="/inventory"
+        theme="amber"
+        [iconSvg]="emFaltaIcon"
+      />
+    </div>
+
+    <!-- Timeline -->
+    <app-timeline-widget />
+
+  </div>
 }

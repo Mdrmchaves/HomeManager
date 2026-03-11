@@ -277,7 +277,8 @@ Npgsql 10.0.0 throws `ObjectDisposedException: ManualResetEventSlim` on `SaveCha
 - **Tailwind v4 critical**: config must be `postcss.config.json` (not `.js`/`.mjs`). The `@angular/build:application` esbuild builder only reads JSON PostCSS configs. Built-in Tailwind support is v3 API — must use `@tailwindcss/postcss`.
 - **Mock data** is isolated in `core/mock/` — trivially swappable with real service calls.
 - **`combineLatest` with individual `catchError`**: when loading multiple resources in parallel via `combineLatest`, wrap each observable with `.pipe(catchError(() => of([])))`. This prevents a single failing request from blocking `combineLatest` from emitting and leaving the UI stuck in a loading state indefinitely.
-- **`HouseholdService.getMyHouseholds()` is called eagerly in `AppShellComponent.ngOnInit()`**: this ensures `selectedHousehold$` is populated on any entry route, including direct navigation to `/inventory` and page refreshes. The result is stored in a plain `households: Household[]` array (not a cold Observable) so the dropdown re-render doesn't trigger a second HTTP call.
+- **`AppShellComponent` uses `toSignal()` for `households` and `selectedHousehold`**: `getMyHouseholds()` is called eagerly as a class field initializer (not in `ngOnInit`), which ensures `selectedHousehold$` is populated on any entry route, including direct navigation to `/inventory` and page refreshes. `toSignal()` handles unsubscription automatically — no memory leak, no `AsyncPipe`, no `OnInit`/`OnDestroy`.
+- **`ChangeDetectionStrategy.OnPush` on all components**: every component uses OnPush. Any state mutation inside an async callback (`async/await`, `FileReader.onload`, native Promises, `setTimeout`) is outside Zone.js and will not trigger re-render automatically — always call `ChangeDetectorRef.markForCheck()` immediately after mutating visible state in those contexts.
 
 ### Middleware Pipeline Order
 
@@ -542,9 +543,11 @@ AppShell wraps all protected routes as a layout parent (sidebar + bottom nav).
 #### LoginComponent (`features/login/`)
 Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboard` on success.
 
-#### DashboardComponent (`features/dashboard/`) — partial real data
-- Calls `HouseholdService.getMyHouseholds()` → renders household selector
-- Shows `SummaryWidget`: total Pertences value (real) + low-stock count (mock)
+#### DashboardComponent (`features/dashboard/`) — partial real data, signals
+- Uses `toSignal()` throughout — no `OnInit`, no `AsyncPipe`, no memory leak
+- `households` / `selectedHousehold` / `itemsStream` / `lowStockStream` are all signals
+- `totalValue` and `lowStockCount` are `computed()` from their respective streams
+- Shows `SummaryWidget`: total Pertences value (real) + low-stock count (real, via `PantryService`)
 - Shows `TimelineWidget`: upcoming events (100% mock — `dashboard.mock.ts`)
 - If no household → shows `HouseholdSetupComponent`
 
@@ -559,11 +562,11 @@ Tab container: "Pertences" | "Despensa". Hosts the two tab components.
 - "Novo Local" modal adds a location (calls `LocationService.addLocation()`)
 - FAB for new item (UI removed in rewrite; to be rebuilt)
 
-#### DespensaTabComponent (`features/inventory/components/despensa-tab/`) — mock data
+#### DespensaTabComponent (`features/inventory/components/despensa-tab/`) — mock data, signals
 - Same layout as Pertences tab (grouped by location, category chips, search)
 - Status dot (ok/low) per item
-- Currently renders `MOCK_DESPENSA_ITEMS` from `inventory.mock.ts`
-- `PantryService` is imported and wired — connect `getItems()` to replace mock
+- Uses `toSignal()` + `BehaviorSubject` reload trigger — no `OnInit`/`OnDestroy`, no memory leak
+- `PantryService.getItems()` is wired in the data stream; UI still shows API data (currently backed by mock in service layer — connect real endpoint to replace mock)
 
 #### HouseholdSetupComponent (`features/dashboard/household-setup/`)
 Modal-based flows to create a household or join one via invite code.

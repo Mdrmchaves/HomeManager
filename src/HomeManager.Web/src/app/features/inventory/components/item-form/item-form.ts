@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, signal, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { InventoryItem, CreateItemRequest, UpdateItemRequest } from '../../../../core/models/inventory-item.model';
@@ -10,7 +10,6 @@ import { SupabaseService } from '../../../../core/services/supabase.service';
 @Component({
   selector: 'app-item-form',
   standalone: true,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule],
   templateUrl: './item-form.html'
 })
@@ -23,16 +22,20 @@ export class ItemFormComponent implements OnInit {
   @Output() closed = new EventEmitter<void>();
   @Output() saved = new EventEmitter<void>();
 
+  private fb = inject(FormBuilder);
+  private inventoryService = inject(InventoryService);
+  private supabaseService = inject(SupabaseService);
+
   form!: FormGroup;
-  saving = false;
-  deleting = false;
-  error = '';
   isEdit = false;
 
-  selectedFile: File | null = null;
-  previewUrl: string | null = null;
-  loadingPhoto = false;
-  showDeleteConfirm = false;
+  saving = signal(false);
+  deleting = signal(false);
+  error = signal('');
+  selectedFile = signal<File | null>(null);
+  previewUrl = signal<string | null>(null);
+  loadingPhoto = signal(false);
+  showDeleteConfirm = signal(false);
 
   readonly destinationOptions = [
     { value: 'Undecided', label: 'Indefinido' },
@@ -41,13 +44,6 @@ export class ItemFormComponent implements OnInit {
     { value: 'Donate', label: 'Dar' },
     { value: 'Trash', label: 'Descartar' },
   ];
-
-  constructor(
-    private fb: FormBuilder,
-    private inventoryService: InventoryService,
-    private supabaseService: SupabaseService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   ngOnInit(): void {
     this.isEdit = !!this.item;
@@ -67,16 +63,14 @@ export class ItemFormComponent implements OnInit {
   }
 
   private async loadExistingPhoto(photoPath: string): Promise<void> {
-    this.loadingPhoto = true;
-    this.cdr.markForCheck();
+    this.loadingPhoto.set(true);
     try {
       const urls = await this.supabaseService.createSignedUrls([photoPath]);
-      this.previewUrl = urls[photoPath] ?? null;
+      this.previewUrl.set(urls[photoPath] ?? null);
     } catch {
       // preview not critical
     } finally {
-      this.loadingPhoto = false;
-      this.cdr.markForCheck();
+      this.loadingPhoto.set(false);
     }
   }
 
@@ -84,26 +78,25 @@ export class ItemFormComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    this.selectedFile = file;
+    this.selectedFile.set(file);
     const reader = new FileReader();
     reader.onload = e => {
-      this.previewUrl = e.target?.result as string;
-      this.cdr.markForCheck();
+      this.previewUrl.set(e.target?.result as string);
     };
     reader.readAsDataURL(file);
   }
 
   async submit(): Promise<void> {
     this.form.markAllAsTouched();
-    if (this.form.invalid || this.saving) return;
-    this.saving = true;
-    this.error = '';
+    if (this.form.invalid || this.saving()) return;
+    this.saving.set(true);
+    this.error.set('');
 
     try {
       let photoUrl = this.item?.photoUrl;
-      if (this.selectedFile) {
+      if (this.selectedFile()) {
         const tempId = crypto.randomUUID();
-        photoUrl = await this.supabaseService.uploadItemPhoto(this.selectedFile, tempId);
+        photoUrl = await this.supabaseService.uploadItemPhoto(this.selectedFile()!, tempId);
       }
 
       const v = this.form.getRawValue();
@@ -136,28 +129,26 @@ export class ItemFormComponent implements OnInit {
         await firstValueFrom(this.inventoryService.createItem(payload));
       }
 
-      this.saving = false;
-      this.cdr.markForCheck();
+      this.saving.set(false);
       this.saved.emit();
     } catch {
-      this.error = 'Ocorreu um erro ao guardar. Tenta novamente.';
-      this.saving = false;
-      this.cdr.markForCheck();
+      this.error.set('Ocorreu um erro ao guardar. Tenta novamente.');
+      this.saving.set(false);
     }
   }
 
   confirmDelete(): void {
-    this.showDeleteConfirm = true;
+    this.showDeleteConfirm.set(true);
   }
 
   cancelDelete(): void {
-    this.showDeleteConfirm = false;
+    this.showDeleteConfirm.set(false);
   }
 
   async deleteItem(): Promise<void> {
-    if (!this.item || this.deleting) return;
-    this.deleting = true;
-    this.error = '';
+    if (!this.item || this.deleting()) return;
+    this.deleting.set(true);
+    this.error.set('');
 
     try {
       await firstValueFrom(this.inventoryService.deleteItem(this.item.id));
@@ -168,13 +159,11 @@ export class ItemFormComponent implements OnInit {
           // best-effort storage cleanup
         }
       }
-      this.deleting = false;
-      this.cdr.markForCheck();
+      this.deleting.set(false);
       this.saved.emit();
     } catch {
-      this.error = 'Ocorreu um erro ao apagar. Tenta novamente.';
-      this.deleting = false;
-      this.cdr.markForCheck();
+      this.error.set('Ocorreu um erro ao apagar. Tenta novamente.');
+      this.deleting.set(false);
     }
   }
 

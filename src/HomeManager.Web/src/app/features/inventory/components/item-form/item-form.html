@@ -3,7 +3,7 @@
   <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
        (click)="$event.stopPropagation()">
 
-    @if (showDeleteConfirm) {
+    @if (showDeleteConfirm()) {
       <!-- Confirmação de apagar -->
       <div class="flex flex-col items-center justify-center p-8">
         <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
@@ -15,17 +15,17 @@
         <p class="text-stone-500 text-sm text-center mb-6">
           Tens a certeza que queres apagar este item? Esta ação não pode ser desfeita.
         </p>
-        @if (error) {
-          <p class="text-red-500 text-sm mb-4 text-center">{{ error }}</p>
+        @if (error()) {
+          <p class="text-red-500 text-sm mb-4 text-center">{{ error() }}</p>
         }
         <div class="flex gap-3 w-full">
-          <button type="button" (click)="cancelDelete()" [disabled]="deleting"
+          <button type="button" (click)="cancelDelete()" [disabled]="deleting()"
                   class="flex-1 py-3 border border-stone-200 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-50 transition-colors disabled:opacity-50">
             Cancelar
           </button>
-          <button type="button" (click)="deleteItem()" [disabled]="deleting"
+          <button type="button" (click)="deleteItem()" [disabled]="deleting()"
                   class="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50">
-            {{ deleting ? 'A apagar...' : 'Apagar' }}
+            {{ deleting() ? 'A apagar...' : 'Apagar' }}
           </button>
         </div>
       </div>
@@ -121,13 +121,13 @@
         <!-- Foto -->
         <div>
           <label class="block text-sm font-medium text-stone-700 mb-2">Foto</label>
-          @if (loadingPhoto) {
+          @if (loadingPhoto()) {
             <div class="w-full h-40 bg-stone-100 rounded-xl flex items-center justify-center mb-3">
               <span class="text-stone-400 text-sm">A carregar...</span>
             </div>
-          } @else if (previewUrl) {
+          } @else if (previewUrl()) {
             <div class="mb-3">
-              <img [src]="previewUrl" alt="Preview"
+              <img [src]="previewUrl()" alt="Preview"
                    class="w-full h-40 object-cover rounded-xl border border-stone-200" />
             </div>
           }
@@ -136,15 +136,15 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            {{ previewUrl ? 'Alterar foto' : 'Adicionar foto' }}
+            {{ previewUrl() ? 'Alterar foto' : 'Adicionar foto' }}
             <input type="file" accept="image/*" capture="environment" class="hidden"
                    (change)="onFileChange($event)" />
           </label>
         </div>
 
         <!-- Erro -->
-        @if (error) {
-          <p class="text-red-500 text-sm bg-red-50 px-4 py-3 rounded-xl">{{ error }}</p>
+        @if (error()) {
+          <p class="text-red-500 text-sm bg-red-50 px-4 py-3 rounded-xl">{{ error() }}</p>
         }
 
         <!-- Botões -->
@@ -159,9 +159,9 @@
                   class="flex-1 py-3 border border-stone-200 text-stone-600 hover:bg-stone-50 rounded-xl text-sm font-medium transition-colors">
             Cancelar
           </button>
-          <button type="submit" [disabled]="form.invalid || saving"
+          <button type="submit" [disabled]="form.invalid || saving()"
                   class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-semibold transition-colors">
-            {{ saving ? 'A guardar...' : 'Guardar' }}
+            {{ saving() ? 'A guardar...' : 'Guardar' }}
           </button>
         </div>
 

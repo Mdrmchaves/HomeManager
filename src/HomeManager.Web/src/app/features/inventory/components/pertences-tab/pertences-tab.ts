@@ -39,9 +39,12 @@ export class PertencesTabComponent {
   collapsedLocations = signal(new Set<string>());
   showNewLocationModal = signal(false);
   showEditLocationModal = signal(false);
+  showDeleteLocationModal = signal(false);
   editingLocation = signal<Location | undefined>(undefined);
+  locationToDelete = signal<Location | undefined>(undefined);
   activeLocationMenu = signal<string | null>(null);
   submittingLocation = signal(false);
+  deletingLocation = signal(false);
   showItemForm = signal(false);
   editingItem = signal<InventoryItem | undefined>(undefined);
   preselectedLocationId = signal<string | undefined>(undefined);
@@ -197,9 +200,26 @@ export class PertencesTabComponent {
 
   confirmDeleteLocation(location: Location): void {
     this.activeLocationMenu.set(null);
-    if (!confirm(`Eliminar o local "${location.name}"? Os pertences associados ficarão sem local.`)) return;
-    this.locationService.deleteLocation(location.id).subscribe(() => {
-      this.reloadData();
+    this.locationToDelete.set(location);
+    this.showDeleteLocationModal.set(true);
+  }
+
+  cancelDeleteLocation(): void {
+    this.showDeleteLocationModal.set(false);
+    this.locationToDelete.set(undefined);
+    this.deletingLocation.set(false);
+  }
+
+  executeDeleteLocation(): void {
+    const loc = this.locationToDelete();
+    if (!loc || this.deletingLocation()) return;
+    this.deletingLocation.set(true);
+    this.locationService.deleteLocation(loc.id).subscribe({
+      next: () => {
+        this.cancelDeleteLocation();
+        this.reloadData();
+      },
+      error: () => this.deletingLocation.set(false)
     });
   }
 

@@ -23,7 +23,7 @@ export interface InventoryItem {
   category?: CategoryRef;
   categoryId?: string;
   quantity?: number;
-  destination?: 'Undecided' | 'Take' | 'Sell' | 'Donate' | 'Trash';
+  destination?: string;
   ownerId?: string;
   tags?: string[];
   listId?: string;

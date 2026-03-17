@@ -14,6 +14,7 @@ import { CategoryService } from '../../../../core/services/category.service';
 import { Location } from '../../../../core/models/location.model';
 import { Category } from '../../../../core/models/category.model';
 import { InventoryItem } from '../../../../core/models/inventory-item.model';
+import { DESTINATION_LABELS, DESTINATION_FILTER_OPTIONS } from '../../../../core/models/destination.enum';
 
 interface LocationGroup {
   locationId: string | null;
@@ -34,8 +35,11 @@ export class PertencesTabComponent {
   private locationService = inject(LocationService);
   private categoryService = inject(CategoryService);
 
+  readonly destinationFilterOptions = DESTINATION_FILTER_OPTIONS;
+
   searchQuery = signal('');
   selectedCategory = signal('Todos');
+  selectedDestination = signal('Todos');
   collapsedLocations = signal(new Set<string>());
   showNewLocationModal = signal(false);
   showEditLocationModal = signal(false);
@@ -95,8 +99,34 @@ export class PertencesTabComponent {
     if (q) items = items.filter(i => i.name.toLowerCase().includes(q));
     const cat = this.selectedCategory();
     if (cat !== 'Todos') items = items.filter(i => i.category?.name === cat);
+    const dest = this.selectedDestination();
+    if (dest === 'Indefinido') {
+      items = items.filter(i => !i.destination || i.destination === 'Undecided');
+    } else if (dest !== 'Todos') {
+      items = items.filter(i => i.destination === dest);
+    }
     return items;
   });
+
+  destinationLabel(destination: string | undefined): string {
+    if (!destination || destination === 'Undecided') return 'Indefinido';
+    return DESTINATION_LABELS[destination] ?? destination;
+  }
+
+  destinationChipClass(value: string): string {
+    const base = 'text-sm font-medium px-4 py-1.5 rounded-full whitespace-nowrap transition-colors flex-shrink-0';
+    const isActive = value === this.selectedDestination();
+    if (!isActive) return `${base} bg-stone-100 text-stone-600 hover:bg-stone-200`;
+    const activeColors: Record<string, string> = {
+      Todos: 'bg-stone-700 text-white',
+      Indefinido: 'bg-stone-400 text-white',
+      Keep: 'bg-emerald-600 text-white',
+      Sell: 'bg-blue-600 text-white',
+      Donate: 'bg-violet-600 text-white',
+      Trash: 'bg-red-600 text-white',
+    };
+    return `${base} ${activeColors[value] ?? 'bg-stone-700 text-white'}`;
+  }
 
   locationGroups = computed((): LocationGroup[] => {
     const groups: LocationGroup[] = [];

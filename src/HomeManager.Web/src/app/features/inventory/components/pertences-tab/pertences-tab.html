@@ -6,14 +6,25 @@
     (valueChange)="searchQuery.set($event)"
   />
 
-  <!-- Category filter chips — always visible -->
-  <div class="flex gap-2 overflow-x-auto py-1">
+  <!-- Category filter chips — hidden, preserved for later -->
+  <div class="hidden flex gap-2 overflow-x-auto py-1">
     @for (cat of allCategories(); track cat) {
       <button
         type="button"
         [class]="chipClass(cat)"
         (click)="selectedCategory.set(cat)"
       >{{ cat }}</button>
+    }
+  </div>
+
+  <!-- Destination filter chips -->
+  <div class="flex gap-2 overflow-x-auto py-1 -mx-4 px-4">
+    @for (opt of destinationFilterOptions; track opt.value) {
+      <button
+        type="button"
+        [class]="destinationChipClass(opt.value)"
+        (click)="selectedDestination.set(opt.value)"
+      >{{ opt.label }}</button>
     }
   </div>
 
@@ -185,7 +196,7 @@
                           <span class="text-xs text-stone-500 font-medium">{{ formatValue(item.value) }}</span>
                         }
                         @if (isWarning(item)) {
-                          <span class="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ item.destination }}</span>
+                          <span class="text-xs font-medium text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">{{ destinationLabel(item.destination) }}</span>
                         }
                       </div>
                     </div>

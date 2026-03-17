@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { InventoryItem, CreateItemRequest, UpdateItemRequest } from '../../../../core/models/inventory-item.model';
 import { Location } from '../../../../core/models/location.model';
 import { Category } from '../../../../core/models/category.model';
+import { Destination, DESTINATION_LABELS } from '../../../../core/models/destination.enum';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SupabaseService } from '../../../../core/services/supabase.service';
 
@@ -37,13 +38,9 @@ export class ItemFormComponent implements OnInit {
   loadingPhoto = signal(false);
   showDeleteConfirm = signal(false);
 
-  readonly destinationOptions = [
-    { value: 'Undecided', label: 'Indefinido' },
-    { value: 'Take', label: 'Levar' },
-    { value: 'Sell', label: 'Vender' },
-    { value: 'Donate', label: 'Dar' },
-    { value: 'Trash', label: 'Descartar' },
-  ];
+  readonly destinationOptions = Object.entries(DESTINATION_LABELS).map(
+    ([value, label]) => ({ value: value as Destination, label })
+  );
 
   ngOnInit(): void {
     this.isEdit = !!this.item;

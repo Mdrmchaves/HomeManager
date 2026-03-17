@@ -13,7 +13,7 @@ HomeManager is a Portuguese-language household management web app. It lets membe
 **Current state** (March 2026):
 - Auth (Supabase), household creation/joining, and the Pertences inventory are fully functional end-to-end.
 - Location and Category CRUD endpoints are implemented on the backend and wired to the frontend.
-- The Despensa tab has a working backend (PantryController) but the frontend still renders mock data.
+- The Despensa tab has a working backend (PantryController) but the frontend shows a placeholder "Em breve" — UI implementation pending.
 - Dashboard distingue `householdsLoading` (skeleton inicial até saber se tem household) de `dataLoading` (skeleton dos widgets enquanto carrega valores). Elimina o flash do HouseholdSetupComponent durante o carregamento inicial. Summary widget usa dados reais parciais (valor total do inventário); Timeline widget é 100% mock.
 - Tasks and Budget pages are placeholder stubs (routes exist, no real UI).
 
@@ -542,7 +542,7 @@ AppShell wraps all protected routes as a layout parent (sidebar + bottom nav).
 ### Pages
 
 #### LoginComponent (`features/login/`)
-Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboard` on success.
+Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboard` on sign-in success. After a successful sign-up, shows a dedicated email confirmation view within the same card (controlled by `emailSent` flag) displaying the address used and a button to return to the login form — the user must confirm their email before they can sign in.
 
 #### DashboardComponent (`features/dashboard/`) — partial real data, signals
 - Uses `toSignal()` throughout — no `OnInit`, no `AsyncPipe`, no memory leak
@@ -565,11 +565,9 @@ Tab container: "Pertences" | "Despensa". Hosts the two tab components.
 - "Novo Local" modal adds a location (calls `LocationService.addLocation()`)
 - FAB for new item (UI removed in rewrite; to be rebuilt)
 
-#### DespensaTabComponent (`features/inventory/components/despensa-tab/`) — mock data, signals
-- Same layout as Pertences tab (grouped by location, category chips, search)
-- Status dot (ok/low) per item
-- Uses `toSignal()` + `BehaviorSubject` reload trigger — no `OnInit`/`OnDestroy`, no memory leak
-- `PantryService.getItems()` is wired in the data stream; UI still shows API data (currently backed by mock in service layer — connect real endpoint to replace mock)
+#### DespensaTabComponent (`features/inventory/components/despensa-tab/`) — placeholder
+- Template replaced with an "Em breve" placeholder UI; the `.ts` file is intact and unchanged.
+- Backend `PantryController` is fully functional — UI implementation is pending.
 
 #### HouseholdSetupComponent (`features/dashboard/household-setup/`)
 Modal-based flows to create a household or join one via invite code.
@@ -675,7 +673,6 @@ Empty stubs — routes exist but no real UI yet.
 - PantryController: full CRUD backend
 
 ### Using mock data
-- Despensa tab (frontend not wired to `PantryService`)
 - Dashboard timeline widget
 - Dashboard summary "Em Falta" (low stock count)
 
@@ -685,7 +682,7 @@ Empty stubs — routes exist but no real UI yet.
 - `destination` field (Take/Sell/Donate etc.) is Pertences-only but is on the shared `InventoryItem` DTO.
 - Dashboard summary endpoint (`GET /api/dashboard/summary`) and timeline endpoint (`GET /api/dashboard/timeline`) not yet implemented.
 - `PUT /api/users/me` and `GET /api/household/{id}/members` not yet implemented.
-- Category and Location UIs in Despensa tab not yet built.
+- Despensa tab — UI pendente de implementação (placeholder "Em breve" ativo; backend PantryController funcional).
 - Server-side filtering by `locationId` and `category` for items is implemented but frontend still filters client-side for Pertences.
 - Tasks and Budget modules are empty stubs.
 

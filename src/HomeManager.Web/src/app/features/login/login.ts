@@ -16,14 +16,13 @@ export class LoginComponent {
   name = '';
   loading = false;
   errorMessage = '';
-  successMessage = '';
+  emailSent = false;
   showPassword = false;
 
   constructor(private supabase: SupabaseService, private router: Router) {}
 
   async submit(): Promise<void> {
     this.errorMessage = '';
-    this.successMessage = '';
     this.loading = true;
 
     try {
@@ -32,8 +31,7 @@ export class LoginComponent {
         this.router.navigate(['/dashboard']);
       } else {
         await this.supabase.signUp(this.email, this.password, this.name);
-        this.successMessage = 'Conta criada! Verifique o seu email para confirmar o registo.';
-        this.mode = 'signin';
+        this.emailSent = true;
       }
     } catch (err: unknown) {
       this.errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro. Tente novamente.';
@@ -45,6 +43,14 @@ export class LoginComponent {
   switchMode(m: 'signin' | 'signup'): void {
     this.mode = m;
     this.errorMessage = '';
-    this.successMessage = '';
+    this.emailSent = false;
+  }
+
+  backToLogin(): void {
+    this.emailSent = false;
+    this.mode = 'signin';
+    this.password = '';
+    this.name = '';
+    this.errorMessage = '';
   }
 }

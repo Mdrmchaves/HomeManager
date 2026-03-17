@@ -34,7 +34,7 @@ public class CreateItemRequestValidator : AbstractValidator<CreateItemRequest>
 
         RuleFor(x => x.Destination)
             .Must(BeValidDestination)
-            .WithMessage("Destination must be one of: Undecided, Take, Sell, Donate, Trash")
+            .WithMessage("Destination must be one of: Undecided, Keep, Sell, Donate, Trash")
             .When(x => !string.IsNullOrEmpty(x.Destination));
     }
 
@@ -43,7 +43,7 @@ public class CreateItemRequestValidator : AbstractValidator<CreateItemRequest>
         if (string.IsNullOrEmpty(destination))
             return true;
 
-        var validDestinations = new[] { "Undecided", "Take", "Sell", "Donate", "Trash" };
+        var validDestinations = new[] { "Undecided", "Keep", "Sell", "Donate", "Trash" };
         return validDestinations.Contains(destination);
     }
 }

@@ -106,9 +106,6 @@ public class InventoryController : ControllerBase
             Description = request.Description,
             Value = request.Value,
             PhotoUrl = request.PhotoUrl,
-#pragma warning disable CS0618
-            Location = request.Location, // legacy field
-#pragma warning restore CS0618
             Destination = request.Destination,
             OwnerId = request.OwnerId,
             Tags = request.Tags,
@@ -145,9 +142,6 @@ public class InventoryController : ControllerBase
         item.Description = request.Description ?? item.Description;
         item.Value = request.Value ?? item.Value;
         item.PhotoUrl = request.PhotoUrl ?? item.PhotoUrl;
-#pragma warning disable CS0618
-        item.Location = request.Location ?? item.Location; // legacy field
-#pragma warning restore CS0618
         item.Destination = request.Destination ?? item.Destination;
         item.OwnerId = request.OwnerId ?? item.OwnerId;
         item.Tags = request.Tags ?? item.Tags;

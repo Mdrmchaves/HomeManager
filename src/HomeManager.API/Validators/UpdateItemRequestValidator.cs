@@ -24,14 +24,9 @@ public class UpdateItemRequestValidator : AbstractValidator<UpdateItemRequest>
             .WithMessage("Value must be greater than or equal to 0")
             .When(x => x.Value.HasValue);
 
-        RuleFor(x => x.Location)
-            .MaximumLength(255)
-            .WithMessage("Location cannot exceed 255 characters")
-            .When(x => !string.IsNullOrEmpty(x.Location));
-
         RuleFor(x => x.Destination)
             .Must(BeValidDestination)
-            .WithMessage("Destination must be one of: Undecided, Take, Sell, Donate, Trash")
+            .WithMessage("Destination must be one of: Undecided, Keep, Sell, Donate, Trash")
             .When(x => !string.IsNullOrEmpty(x.Destination));
     }
 
@@ -40,7 +35,7 @@ public class UpdateItemRequestValidator : AbstractValidator<UpdateItemRequest>
         if (string.IsNullOrEmpty(destination))
             return true;
 
-        var validDestinations = new[] { "Undecided", "Take", "Sell", "Donate", "Trash" };
+        var validDestinations = new[] { "Undecided", "Keep", "Sell", "Donate", "Trash" };
         return validDestinations.Contains(destination);
     }
 }

@@ -20,4 +20,15 @@ export class LocationService {
       .post<ApiResponse<Location>>(`${environment.apiUrl}/households/${householdId}/locations`, { name, icon })
       .pipe(map(r => r.data));
   }
+
+  updateLocation(id: string, name: string, icon?: string): Observable<Location> {
+    return this.http
+      .put<ApiResponse<Location>>(`${environment.apiUrl}/locations/${id}`, { name, icon })
+      .pipe(map(r => r.data));
+  }
+
+  deleteLocation(id: string): Observable<void> {
+    return this.http
+      .delete<void>(`${environment.apiUrl}/locations/${id}`);
+  }
 }

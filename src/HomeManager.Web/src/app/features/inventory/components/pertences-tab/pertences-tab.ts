@@ -18,6 +18,7 @@ import { InventoryItem } from '../../../../core/models/inventory-item.model';
 interface LocationGroup {
   locationId: string | null;
   locationName: string;
+  location: Location | null;
   items: InventoryItem[];
 }
 
@@ -37,6 +38,10 @@ export class PertencesTabComponent {
   selectedCategory = signal('Todos');
   collapsedLocations = signal(new Set<string>());
   showNewLocationModal = signal(false);
+  showEditLocationModal = signal(false);
+  editingLocation = signal<Location | undefined>(undefined);
+  activeLocationMenu = signal<string | null>(null);
+  submittingLocation = signal(false);
   showItemForm = signal(false);
   editingItem = signal<InventoryItem | undefined>(undefined);
   preselectedLocationId = signal<string | undefined>(undefined);
@@ -94,11 +99,11 @@ export class PertencesTabComponent {
     const groups: LocationGroup[] = [];
     for (const loc of this.locations()) {
       const items = this.filteredItems().filter(i => i.locationId === loc.id);
-      groups.push({ locationId: loc.id, locationName: loc.name, items });
+      groups.push({ locationId: loc.id, locationName: loc.name, location: loc, items });
     }
     const noLoc = this.filteredItems().filter(i => !i.locationId);
     if (noLoc.length > 0) {
-      groups.push({ locationId: null, locationName: 'Sem Local', items: noLoc });
+      groups.push({ locationId: null, locationName: 'Sem Local', location: null, items: noLoc });
     }
     return groups;
   });
@@ -143,12 +148,57 @@ export class PertencesTabComponent {
 
   closeNewLocationModal(): void {
     this.showNewLocationModal.set(false);
+    this.submittingLocation.set(false);
   }
 
   createLocation(name: string, icon?: string): void {
-    if (!name.trim() || !this.householdId()) return;
-    this.locationService.addLocation(name.trim(), this.householdId(), icon?.trim() || undefined).subscribe(() => {
-      this.showNewLocationModal.set(false);
+    if (!name.trim() || !this.householdId() || this.submittingLocation()) return;
+    this.submittingLocation.set(true);
+    this.locationService.addLocation(name.trim(), this.householdId(), icon?.trim() || undefined).subscribe({
+      next: () => {
+        this.showNewLocationModal.set(false);
+        this.submittingLocation.set(false);
+        this.reloadData();
+      },
+      error: () => this.submittingLocation.set(false)
+    });
+  }
+
+  toggleLocationMenu(locationId: string | null): void {
+    const key = locationId ?? null;
+    this.activeLocationMenu.update(current => current === key ? null : key);
+  }
+
+  openEditLocationModal(location: Location): void {
+    this.editingLocation.set(location);
+    this.showEditLocationModal.set(true);
+    this.activeLocationMenu.set(null);
+  }
+
+  closeEditLocationModal(): void {
+    this.showEditLocationModal.set(false);
+    this.editingLocation.set(undefined);
+    this.submittingLocation.set(false);
+  }
+
+  saveEditLocation(name: string, icon?: string): void {
+    const loc = this.editingLocation();
+    if (!loc || !name.trim() || this.submittingLocation()) return;
+    this.submittingLocation.set(true);
+    this.locationService.updateLocation(loc.id, name.trim(), icon?.trim() || undefined).subscribe({
+      next: () => {
+        this.closeEditLocationModal();
+        this.submittingLocation.set(false);
+        this.reloadData();
+      },
+      error: () => this.submittingLocation.set(false)
+    });
+  }
+
+  confirmDeleteLocation(location: Location): void {
+    this.activeLocationMenu.set(null);
+    if (!confirm(`Eliminar o local "${location.name}"? Os pertences associados ficarão sem local.`)) return;
+    this.locationService.deleteLocation(location.id).subscribe(() => {
       this.reloadData();
     });
   }

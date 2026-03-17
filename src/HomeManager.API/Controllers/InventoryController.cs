@@ -16,10 +16,12 @@ namespace HomeManager.API.Controllers;
 public class InventoryController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<InventoryController> _logger;
 
-    public InventoryController(ApplicationDbContext context)
+    public InventoryController(ApplicationDbContext context, ILogger<InventoryController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     private Guid GetUserId()
@@ -96,7 +98,11 @@ public class InventoryController : ControllerBase
         );
 
         if (!hasAccess)
+        {
+            _logger.LogWarning("Access denied: user {UserId} attempted to create item in household {HouseholdId}",
+                userId, request.HouseholdId);
             return Forbid();
+        }
 
         var item = new InventoryItem
         {
@@ -119,6 +125,8 @@ public class InventoryController : ControllerBase
 
         _context.InventoryItems.Add(item);
         await _context.SaveChangesAsync();
+        _logger.LogInformation("Item {ItemId} created in household {HouseholdId} by user {UserId}",
+            item.Id, item.HouseholdId, userId);
 
         // Load navigation properties for the response
         await _context.Entry(item).Reference(i => i.LocationRef).LoadAsync();
@@ -157,6 +165,7 @@ public class InventoryController : ControllerBase
         item.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        _logger.LogInformation("Item {ItemId} updated by user {UserId}", id, userId);
 
         return NoContent();
     }
@@ -178,6 +187,7 @@ public class InventoryController : ControllerBase
 
         _context.InventoryItems.Remove(item);
         await _context.SaveChangesAsync();
+        _logger.LogInformation("Item {ItemId} deleted by user {UserId}", id, userId);
 
         return NoContent();
     }

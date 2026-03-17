@@ -66,7 +66,7 @@ public class ErrorHandlingMiddleware
             {
                 StatusCode = (int)HttpStatusCode.BadRequest,
                 Message = exception.Message,
-                Details = exception.StackTrace,
+                Details = exception.Message,
             },
             KeyNotFoundException _ => new ErrorResponse
             {

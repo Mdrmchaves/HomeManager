@@ -22,7 +22,7 @@ public class UserSyncMiddleware
         // Only sync if user is authenticated
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            _logger.LogInformation("User is authenticated, attempting sync...");
+            _logger.LogDebug("User is authenticated, attempting sync...");
 
             try
             {
@@ -38,12 +38,7 @@ public class UserSyncMiddleware
                     context.User.FindFirst(ClaimTypes.Name)?.Value
                     ?? context.User.FindFirst("name")?.Value;
 
-                _logger.LogInformation(
-                    "Extracted claims - UserId: {UserId}, Email: {Email}, Name: {Name}",
-                    userId,
-                    email,
-                    name
-                );
+                _logger.LogDebug("Extracted claims - UserId: {UserId}, Name: {Name}", userId, name);
 
                 if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(email))
                 {
@@ -51,7 +46,7 @@ public class UserSyncMiddleware
 
                     if (_cache.TryGetValue(cacheKey, out _))
                     {
-                        _logger.LogInformation("User sync skipped (cached)");
+                        _logger.LogDebug("User sync skipped (cached)");
                     }
                     else
                     {

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HomeManager.API.Services;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HomeManager.API.Middleware;
 
@@ -7,11 +8,13 @@ public class UserSyncMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<UserSyncMiddleware> _logger;
+    private readonly IMemoryCache _cache;
 
-    public UserSyncMiddleware(RequestDelegate next, ILogger<UserSyncMiddleware> logger)
+    public UserSyncMiddleware(RequestDelegate next, ILogger<UserSyncMiddleware> logger, IMemoryCache cache)
     {
         _next = next;
         _logger = logger;
+        _cache = cache;
     }
 
     public async Task InvokeAsync(HttpContext context, IServiceScopeFactory scopeFactory)
@@ -44,12 +47,26 @@ public class UserSyncMiddleware
 
                 if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(email))
                 {
-                    // Use a dedicated scope so the sync DbContext/connection is isolated
-                    // from the request-scoped DbContext used by controllers/services.
-                    using var scope = scopeFactory.CreateScope();
-                    var userSyncService = scope.ServiceProvider.GetRequiredService<IUserSyncService>();
-                    await userSyncService.EnsureUserExistsAsync(userId, email, name);
-                    _logger.LogInformation("User sync completed successfully");
+                    var cacheKey = $"user-synced:{userId}";
+
+                    if (_cache.TryGetValue(cacheKey, out _))
+                    {
+                        _logger.LogInformation("User sync skipped (cached)");
+                    }
+                    else
+                    {
+                        // Use a dedicated scope so the sync DbContext/connection is isolated
+                        // from the request-scoped DbContext used by controllers/services.
+                        using var scope = scopeFactory.CreateScope();
+                        var userSyncService = scope.ServiceProvider.GetRequiredService<IUserSyncService>();
+                        await userSyncService.EnsureUserExistsAsync(userId, email, name);
+                        _logger.LogInformation("User sync completed successfully");
+
+                        _cache.Set(cacheKey, true, new MemoryCacheEntryOptions
+                        {
+                            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                        });
+                    }
                 }
                 else
                 {

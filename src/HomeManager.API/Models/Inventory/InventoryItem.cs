@@ -28,15 +28,6 @@ public class InventoryItem
     [Column("photo_url")]
     public string? PhotoUrl { get; set; }
 
-    /// <summary>
-    /// Legacy free-text location field. Use <see cref="LocationId"/> instead.
-    /// Kept for backward compatibility until data is migrated.
-    /// </summary>
-    [Obsolete("Use LocationId (FK to inventory.locations) instead.")]
-    [Column("location")]
-    [MaxLength(255)]
-    public string? Location { get; set; }
-
     [Column("location_id")]
     public Guid? LocationId { get; set; }
 

@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using HomeManager.API.Data;
+using HomeManager.API.Models;
+using HomeManager.API.Models.DTOs;
 using HomeManager.API.Models.DTOs.Requests;
 using HomeManager.API.Models.Inventory;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +35,7 @@ public class InventoryController : ControllerBase
 
     // GET: api/inventory/items?householdId={guid}&locationId={guid}&category={string}
     [HttpGet("items")]
-    public async Task<ActionResult<IEnumerable<InventoryItem>>> GetItems(
+    public async Task<ActionResult<ApiResponse<List<ItemResponse>>>> GetItems(
         [FromQuery] Guid? householdId = null,
         [FromQuery] Guid? locationId = null,
         [FromQuery] string? category = null
@@ -42,9 +44,7 @@ public class InventoryController : ControllerBase
         var userId = GetUserId();
 
         var query = _context
-            .InventoryItems.Include(i => i.Owner)
-            .Include(i => i.List)
-            .Include(i => i.LocationRef)
+            .InventoryItems.Include(i => i.LocationRef)
             .Include(i => i.Category)
             .Where(i => i.Household.HouseholdUsers.Any(hu => hu.UserId == userId));
 
@@ -59,19 +59,19 @@ public class InventoryController : ControllerBase
 
         var items = await query.OrderByDescending(i => i.CreatedAt).ToListAsync();
 
-        return Ok(items);
+        return Ok(ApiResponse<List<ItemResponse>>.SuccessResponse(
+            items.Select(ItemResponse.FromEntity).ToList()
+        ));
     }
 
     // GET: api/inventory/items/{id}
     [HttpGet("items/{id}")]
-    public async Task<ActionResult<InventoryItem>> GetItem(Guid id)
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> GetItem(Guid id)
     {
         var userId = GetUserId();
 
         var item = await _context
-            .InventoryItems.Include(i => i.Owner)
-            .Include(i => i.List)
-            .Include(i => i.LocationRef)
+            .InventoryItems.Include(i => i.LocationRef)
             .Include(i => i.Category)
             .Include(i => i.Household)
             .FirstOrDefaultAsync(i =>
@@ -81,12 +81,12 @@ public class InventoryController : ControllerBase
         if (item == null)
             return NotFound();
 
-        return Ok(item);
+        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
     }
 
     // POST: api/inventory/items
     [HttpPost("items")]
-    public async Task<ActionResult<InventoryItem>> CreateItem(CreateItemRequest request)
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> CreateItem(CreateItemRequest request)
     {
         var userId = GetUserId();
 
@@ -120,7 +120,12 @@ public class InventoryController : ControllerBase
         _context.InventoryItems.Add(item);
         await _context.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(GetItem), new { id = item.Id }, item);
+        // Load navigation properties for the response
+        await _context.Entry(item).Reference(i => i.LocationRef).LoadAsync();
+        await _context.Entry(item).Reference(i => i.Category).LoadAsync();
+
+        var response = ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item));
+        return CreatedAtAction(nameof(GetItem), new { id = item.Id }, response);
     }
 
     // PUT: api/inventory/items/{id}

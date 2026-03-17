@@ -406,7 +406,7 @@ All endpoints require `Authorization: Bearer {supabase_jwt}` except `/api/health
 { "success": true, "message": "Success", "data": {...}, "timestamp": "..." }
 ```
 
-`InventoryController` returns raw entity arrays (no envelope) — legacy behavior.
+`InventoryController` now uses `ApiResponse<T>` envelope and `ItemResponse` DTO (same as all other controllers). GET list/by-id return `ApiResponse<List<ItemResponse>>`/`ApiResponse<ItemResponse>`; POST returns 201 with `ApiResponse<ItemResponse>`; PUT/DELETE return 204 No Content.
 
 ### Error shapes
 
@@ -445,13 +445,13 @@ No auth. Returns `{ status: "healthy", timestamp, service }`.
 
 ### Inventory (Pertences) — `/api/inventory` [Authorize]
 
-Returns raw `InventoryItem` objects (no `ApiResponse<T>` wrapper).
+All GET/POST responses wrapped in `ApiResponse<T>` envelope. PUT/DELETE return 204 No Content.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/api/inventory/items` | Items for current user's households |
-| `GET` | `/api/inventory/items/{id}` | Single item |
-| `POST` | `/api/inventory/items` | Create item |
+| `GET` | `/api/inventory/items` | Items for current user's households → `ApiResponse<List<ItemResponse>>` |
+| `GET` | `/api/inventory/items/{id}` | Single item → `ApiResponse<ItemResponse>` |
+| `POST` | `/api/inventory/items` | Create item → 201 + `ApiResponse<ItemResponse>` |
 | `PUT` | `/api/inventory/items/{id}` | Update item (204 No Content) |
 | `DELETE` | `/api/inventory/items/{id}` | Delete item (204 No Content) |
 
@@ -463,6 +463,9 @@ householdId, name, description?, value?, photoUrl?,
 location? (legacy), destination?, ownerId?, tags? (JSONB string),
 listId?, locationId?, categoryId?, quantity? (integer)
 ```
+
+**ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, createdAt, updatedAt }`
+Note: `location` (legacy string), `ownerId`, `tags`, `listId` are NOT exposed in the response DTO.
 
 ---
 

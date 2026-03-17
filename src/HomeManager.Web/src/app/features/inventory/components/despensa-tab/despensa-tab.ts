@@ -2,9 +2,6 @@ import { Component, signal, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { switchMap, combineLatest, of, BehaviorSubject } from 'rxjs';
 import { catchError, tap, take } from 'rxjs/operators';
-import { StatusDotComponent } from '../../../../shared/components/status-dot/status-dot';
-import { SearchInputComponent } from '../../../../shared/components/search-input/search-input';
-import { FabComponent } from '../../../../shared/components/fab/fab';
 import { HouseholdService } from '../../../../core/services/household.service';
 import { PantryService } from '../../../../core/services/pantry.service';
 import { LocationService } from '../../../../core/services/location.service';
@@ -20,7 +17,7 @@ interface LocationGroup {
 @Component({
   selector: 'app-despensa-tab',
   standalone: true,
-  imports: [StatusDotComponent, SearchInputComponent, FabComponent],
+  imports: [],
   templateUrl: './despensa-tab.html'
 })
 export class DespensaTabComponent {

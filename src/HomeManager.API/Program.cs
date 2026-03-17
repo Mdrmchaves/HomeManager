@@ -56,6 +56,9 @@ try
     // Validation
     builder.Services.AddValidationConfiguration();
 
+    // Memory Cache
+    builder.Services.AddMemoryCache();
+
     // Framework Services
     builder.Services.AddControllers()
         .AddJsonOptions(options =>

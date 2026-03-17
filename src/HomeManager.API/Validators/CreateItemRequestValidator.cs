@@ -27,11 +27,6 @@ public class CreateItemRequestValidator : AbstractValidator<CreateItemRequest>
             .WithMessage("Value must be greater than or equal to 0")
             .When(x => x.Value.HasValue);
 
-        RuleFor(x => x.Location)
-            .MaximumLength(255)
-            .WithMessage("Location cannot exceed 255 characters")
-            .When(x => !string.IsNullOrEmpty(x.Location));
-
         RuleFor(x => x.Destination)
             .Must(BeValidDestination)
             .WithMessage("Destination must be one of: Undecided, Keep, Sell, Donate, Trash")

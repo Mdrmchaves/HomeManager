@@ -6,7 +6,6 @@ public record CreateItemRequest(
     string? Description,
     decimal? Value,
     string? PhotoUrl,
-    string? Location,       // Legacy free-text field; prefer LocationId
     string? Destination,
     Guid? OwnerId,
     string? Tags,

@@ -52,16 +52,16 @@ public class LocationController : ControllerBase
         CreateLocationRequest request
     )
     {
-        var response = await _locationService.CreateLocationAsync(householdId, request, GetUserId());
+        var response = await _locationService.CreateLocationAsync(
+            householdId,
+            request,
+            GetUserId()
+        );
 
         if (!response.Success)
             return BadRequest(response);
 
-        return CreatedAtAction(
-            nameof(GetLocations),
-            new { householdId },
-            response
-        );
+        return CreatedAtAction(nameof(GetLocations), new { householdId }, response);
     }
 
     // PUT: api/locations/{id}

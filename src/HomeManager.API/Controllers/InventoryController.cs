@@ -35,20 +35,24 @@ public class InventoryController : ControllerBase
         return Guid.Parse(userIdClaim);
     }
 
-    // GET: api/inventory/items?householdId={guid}&locationId={guid}&category={string}
+    // GET: api/inventory/items?householdId={guid}&locationId={guid}&category={string}&status={string}
     [HttpGet("items")]
     public async Task<ActionResult<ApiResponse<List<ItemResponse>>>> GetItems(
         [FromQuery] Guid? householdId = null,
         [FromQuery] Guid? locationId = null,
-        [FromQuery] string? category = null
+        [FromQuery] string? category = null,
+        [FromQuery] string? status = null
     )
     {
         var userId = GetUserId();
 
+        var statusFilter = string.IsNullOrEmpty(status) ? "active" : status;
+
         var query = _context
             .InventoryItems.Include(i => i.LocationRef)
             .Include(i => i.Category)
-            .Where(i => i.Household.HouseholdUsers.Any(hu => hu.UserId == userId));
+            .Where(i => i.Household.HouseholdUsers.Any(hu => hu.UserId == userId))
+            .Where(i => i.Status == statusFilter);
 
         if (householdId.HasValue)
             query = query.Where(i => i.HouseholdId == householdId.Value);
@@ -190,5 +194,61 @@ public class InventoryController : ControllerBase
         _logger.LogInformation("Item {ItemId} deleted by user {UserId}", id, userId);
 
         return NoContent();
+    }
+
+    // POST: api/inventory/items/{id}/resolve
+    [HttpPost("items/{id}/resolve")]
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> ResolveItem(Guid id, ResolveItemRequest request)
+    {
+        var userId = GetUserId();
+
+        var item = await _context
+            .InventoryItems.Include(i => i.Household)
+            .Include(i => i.LocationRef)
+            .Include(i => i.Category)
+            .FirstOrDefaultAsync(i =>
+                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
+            );
+
+        if (item == null)
+            return NotFound();
+
+        item.Status = "resolved";
+        item.ResolvedAt = DateTime.UtcNow;
+        item.Destination = request.Destination;
+        item.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Item {ItemId} resolved by user {UserId} with destination {Destination}",
+            id, userId, request.Destination);
+
+        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
+    }
+
+    // POST: api/inventory/items/{id}/restore
+    [HttpPost("items/{id}/restore")]
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> RestoreItem(Guid id)
+    {
+        var userId = GetUserId();
+
+        var item = await _context
+            .InventoryItems.Include(i => i.Household)
+            .Include(i => i.LocationRef)
+            .Include(i => i.Category)
+            .FirstOrDefaultAsync(i =>
+                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
+            );
+
+        if (item == null)
+            return NotFound();
+
+        item.Status = "active";
+        item.ResolvedAt = null;
+        item.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        _logger.LogInformation("Item {ItemId} restored to active by user {UserId}", id, userId);
+
+        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
     }
 }

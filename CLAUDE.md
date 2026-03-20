@@ -360,6 +360,8 @@ Serilog Request Logging
 | `category_id` | UUID FK | → `inventory.categories.id` ON DELETE SET NULL |
 | `quantity` | integer | Nullable — number of units (e.g. 6 for a set of 6 knives) |
 | `destination` | varchar(50) | `Undecided\|Take\|Sell\|Donate\|Trash` (Pertences-only) |
+| `status` | varchar(20) NOT NULL | `'active'` (default) or `'resolved'` |
+| `resolved_at` | timestamptz NULL | Set when item is resolved; null when active |
 | `owner_id` | UUID FK | → `shared.users.id` (nullable) |
 | `tags` | jsonb | Stored as stringified JSON array |
 | `list_id` | UUID FK | → `inventory.lists.id` ON DELETE SET NULL |
@@ -454,8 +456,17 @@ All GET/POST responses wrapped in `ApiResponse<T>` envelope. PUT/DELETE return 2
 | `POST` | `/api/inventory/items` | Create item → 201 + `ApiResponse<ItemResponse>` |
 | `PUT` | `/api/inventory/items/{id}` | Update item (204 No Content) |
 | `DELETE` | `/api/inventory/items/{id}` | Delete item (204 No Content) |
+| `POST` | `/api/inventory/items/{id}/resolve` | Mark item resolved → 200 + `ApiResponse<ItemResponse>` |
+| `POST` | `/api/inventory/items/{id}/restore` | Restore item to active → 200 + `ApiResponse<ItemResponse>` |
 
-**Query params** (GET list): `householdId?`, `locationId?`, `category?` (name string)
+**Query params** (GET list): `householdId?`, `locationId?`, `category?` (name string), `status?` (`"active"` default \| `"resolved"`)
+
+**Default behaviour**: without `status` param, GET list returns only `status = 'active'` items — safe for existing frontend.
+
+**ResolveItemRequest** (POST resolve body): `{ destination: string }`
+- Sets `status = "resolved"`, `resolved_at = now`, `destination = <value>`
+
+**Restore** (no body): sets `status = "active"`, `resolved_at = null`.
 
 **CreateItemRequest**:
 ```
@@ -464,7 +475,7 @@ location? (legacy), destination?, ownerId?, tags? (JSONB string),
 listId?, locationId?, categoryId?, quantity? (integer)
 ```
 
-**ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, createdAt, updatedAt }`
+**ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, status, resolvedAt?, createdAt, updatedAt }`
 Note: `location` (legacy string), `ownerId`, `tags`, `listId` are NOT exposed in the response DTO.
 
 ---
@@ -671,6 +682,7 @@ Empty stubs — routes exist but no real UI yet.
 - Authentication (Supabase signup/signin, JWT flow)
 - Household create, join, list
 - Pertences: full CRUD with location grouping and category filtering
+- Pertences: resolve/restore workflow (`POST .../resolve`, `POST .../restore`) — backend only
 - Locations: create, list, update, delete (with UI for create)
 - Categories: full CRUD (backend only; no UI yet)
 - PantryController: full CRUD backend
@@ -680,7 +692,7 @@ Empty stubs — routes exist but no real UI yet.
 - Dashboard summary "Em Falta" (low stock count)
 
 ### Known issues / gaps (from ENDPOINT_GAP_ANALYSIS.md)
-- `InventoryItem.location` (string) is deprecated; migration to `locationId` FK is partial — old rows may have only the string field.
+- `InventoryItem.location` (string) legacy column removed in migration `RemoveLegacyLocationField`; `locationId` FK is now the canonical field.
 - `tags` field is stored as raw JSONB string (stringified array) — not a proper FK-based system yet.
 - `destination` field (Take/Sell/Donate etc.) is Pertences-only but is on the shared `InventoryItem` DTO.
 - Dashboard summary endpoint (`GET /api/dashboard/summary`) and timeline endpoint (`GET /api/dashboard/timeline`) not yet implemented.

@@ -16,6 +16,8 @@ public class ItemResponse
     public string? CategoryName { get; set; }
     public int? Quantity { get; set; }
     public string? Destination { get; set; }
+    public string Status { get; set; } = "active";
+    public DateTime? ResolvedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
@@ -33,6 +35,8 @@ public class ItemResponse
         CategoryName = item.Category?.Name,
         Quantity = item.Quantity,
         Destination = item.Destination,
+        Status = item.Status,
+        ResolvedAt = item.ResolvedAt,
         CreatedAt = item.CreatedAt,
         UpdatedAt = item.UpdatedAt,
     };

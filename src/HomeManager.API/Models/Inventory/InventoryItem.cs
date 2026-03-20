@@ -50,6 +50,13 @@ public class InventoryItem
     [Column("list_id")]
     public Guid? ListId { get; set; }
 
+    [Column("status")]
+    [MaxLength(20)]
+    public string Status { get; set; } = "active";
+
+    [Column("resolved_at")]
+    public DateTime? ResolvedAt { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

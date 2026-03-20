@@ -125,7 +125,6 @@ namespace HomeManager.API.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
-                        .HasDefaultValue("active")
                         .HasColumnName("status");
 
                     b.Property<string>("Tags")

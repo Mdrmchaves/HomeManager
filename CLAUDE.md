@@ -10,11 +10,15 @@ HomeManager is a Portuguese-language household management web app. It lets membe
 
 **Target audience**: Households of 1–N people sharing a living space.
 
-**Current state** (March 2026):
+**Current state** (March 23, 2026):
 - Auth (Supabase), household creation/joining, and the Pertences inventory are fully functional end-to-end.
-- Location and Category CRUD endpoints are implemented on the backend and wired to the frontend.
+- Login page has a password visibility toggle button ("olhinho").
+- Location full CRUD (create, edit, delete) is wired end-to-end including modals in the Pertences tab.
+- Category CRUD is functional on the backend; categories are assignable to items via the item-form but the category filter chips in the Pertences listing are currently hidden (`class="hidden"`).
+- Pertences listing shows quantity inline (×N when quantity > 1) and has destination filter chips (Todos / Indefinido / Keep / Sell / Donate / Trash).
 - The Despensa tab has a working backend (PantryController) but the frontend shows a placeholder "Em breve" — UI implementation pending.
-- Dashboard distingue `householdsLoading` (skeleton inicial até saber se tem household) de `dataLoading` (skeleton dos widgets enquanto carrega valores). Elimina o flash do HouseholdSetupComponent durante o carregamento inicial. Summary widget usa dados reais parciais (valor total do inventário); Timeline widget é 100% mock.
+- Dashboard distingue `householdsLoading` (skeleton inicial até saber se tem household) de `dataLoading` (skeleton dos widgets enquanto carrega valores). Elimina o flash do HouseholdSetupComponent durante o carregamento inicial. Summary widget usa dados reais (valor total do inventário + contagem de itens em falta via PantryService); Timeline widget é 100% mock.
+- Pertences resolve/restore workflow exists on the backend only — no web UI yet.
 - Tasks and Budget pages are placeholder stubs (routes exist, no real UI).
 
 ---
@@ -109,7 +113,10 @@ HomeManager/
 │   │   │       ├── 20260310102006_InitialBaseline.*
 │   │   │       ├── 20260310105941_AddLocationEntity.*
 │   │   │       ├── 20260310120809_AddCategoryAndItemRelationships.*
-│   │   │       └── 20260310121300_AddPantryItemEntity.*
+│   │   │       ├── 20260310121300_AddPantryItemEntity.*
+│   │   │       ├── 20260311210909_AddQuantityToInventoryItems.*
+│   │   │       ├── 20260317181000_RemoveLegacyLocationField.*
+│   │   │       └── 20260320120000_AddItemStatusAndResolvedAt.*
 │   │   ├── Extensions/
 │   │   │   └── ServiceCollectionExtensions.cs  ← All DI registrations
 │   │   ├── Middleware/
@@ -355,11 +362,10 @@ Serilog Request Logging
 | `description` | text | |
 | `value` | decimal | Monetary value |
 | `photo_url` | text | Supabase Storage path |
-| `location` | varchar(255) | **Deprecated** — legacy free-text; use `location_id` |
 | `location_id` | UUID FK | → `inventory.locations.id` ON DELETE SET NULL |
 | `category_id` | UUID FK | → `inventory.categories.id` ON DELETE SET NULL |
 | `quantity` | integer | Nullable — number of units (e.g. 6 for a set of 6 knives) |
-| `destination` | varchar(50) | `Undecided\|Take\|Sell\|Donate\|Trash` (Pertences-only) |
+| `destination` | varchar(50) | `Undecided\|Keep\|Sell\|Donate\|Trash` (Pertences-only) |
 | `status` | varchar(20) NOT NULL | `'active'` (default) or `'resolved'` |
 | `resolved_at` | timestamptz NULL | Set when item is resolved; null when active |
 | `owner_id` | UUID FK | → `shared.users.id` (nullable) |
@@ -476,7 +482,7 @@ listId?, locationId?, categoryId?, quantity? (integer)
 ```
 
 **ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, status, resolvedAt?, createdAt, updatedAt }`
-Note: `location` (legacy string), `ownerId`, `tags`, `listId` are NOT exposed in the response DTO.
+Note: `ownerId`, `tags`, `listId` are NOT exposed in the response DTO. The legacy `location` string column was dropped in migration `RemoveLegacyLocationField`.
 
 ---
 
@@ -556,7 +562,7 @@ AppShell wraps all protected routes as a layout parent (sidebar + bottom nav).
 ### Pages
 
 #### LoginComponent (`features/login/`)
-Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboard` on sign-in success. After a successful sign-up, shows a dedicated email confirmation view within the same card (controlled by `emailSent` flag) displaying the address used and a button to return to the login form — the user must confirm their email before they can sign in.
+Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboard` on sign-in success. After a successful sign-up, shows a dedicated email confirmation view within the same card (controlled by `emailSent` flag) displaying the address used and a button to return to the login form — the user must confirm their email before they can sign in. The password field has a visibility toggle button ("olhinho") that switches the `<input>` between `type="password"` and `type="text"` via the `showPassword` boolean.
 
 #### DashboardComponent (`features/dashboard/`) — partial real data, signals
 - Uses `toSignal()` throughout — no `OnInit`, no `AsyncPipe`, no memory leak
@@ -572,12 +578,20 @@ Email/password sign-in and sign-up via `SupabaseService`. Redirects to `/dashboa
 Tab container: "Pertences" | "Despensa". Hosts the two tab components.
 
 #### PertencesTabComponent (`features/inventory/components/pertences-tab/`) — real data
-- Fetches locations (`LocationService`) + items (`InventoryService`) for selected household
+- Fetches locations (`LocationService`) + items (`InventoryService`) + categories (`CategoryService`, type `'pertences'`) for selected household via `combineLatest`
+- `initialLoading` signal: first load shows a `SkeletonBlockComponent` skeleton; subsequent reloads use a subtle `reloading` pulse bar
 - Groups items by `locationId`; items without a location appear under "Sem Local"
-- Category chips for secondary filtering
-- Search input (client-side filter)
-- "Novo Local" modal adds a location (calls `LocationService.addLocation()`)
-- FAB for new item (UI removed in rewrite; to be rebuilt)
+- Items show name + `×N` quantity suffix when `quantity > 1`, category badge, value, and a destination warning badge (amber) for Sell/Donate/Trash
+- **Destination filter chips** (row): Todos / Indefinido / Keep / Sell / Donate / Trash — client-side
+- **Category filter chips**: present in template but currently hidden (`class="hidden"`) — preserved for future use
+- Search input (client-side filter on item name)
+- Location header: collapsible, with a kebab menu (⋮) to **edit** or **delete** the location (confirmation modal for delete)
+- "Novo Local" modal: creates location with name + optional emoji icon
+- "Editar Local" modal: edits name + icon
+- "Eliminar Local" modal: confirmation before delete
+- FAB `<app-fab label="Novo pertence">` opens the item-form modal
+- Each item row has an "Editar" button to open the item-form for editing
+- "Adicionar a {local}" link at the bottom of each group pre-selects the location in the item-form
 
 #### DespensaTabComponent (`features/inventory/components/despensa-tab/`) — placeholder
 - Template replaced with an "Em breve" placeholder UI; the `.ts` file is intact and unchanged.
@@ -607,8 +621,8 @@ Empty stubs — routes exist but no real UI yet.
 |---------|-------------|-------------|
 | `SupabaseService` | `signIn/Up/Out`, `getSession`, `getAccessToken`, `uploadItemPhoto`, `createSignedUrls` | Supabase JS |
 | `HouseholdService` | `getMyHouseholds()`, `createHousehold()`, `joinHousehold()`; `selectedHousehold$` BehaviorSubject | Real API |
-| `InventoryService` | `getItems()`, `createItem()`, `updateItem()`, `deleteItem()` | Real API |
-| `LocationService` | `getLocations(householdId)`, `addLocation(name, householdId, icon?)` | Real API |
+| `InventoryService` | `getItems()`, `getItem()`, `createItem()`, `updateItem()`, `deleteItem()` — no resolveItem/restoreItem yet | Real API |
+| `LocationService` | `getLocations(householdId)`, `addLocation()`, `updateLocation()`, `deleteLocation()` | Real API |
 | `CategoryService` | `getCategories()`, `createCategory()`, `updateCategory()`, `deleteCategory()` | Real API |
 | `PantryService` | `getItems(householdId, locationId?, category?, status?)`, full CRUD | Real API (not yet wired in UI) |
 
@@ -679,25 +693,29 @@ Empty stubs — routes exist but no real UI yet.
 ## 9. Current State & Known Issues
 
 ### Fully working end-to-end
-- Authentication (Supabase signup/signin, JWT flow)
+- Authentication (Supabase signup/signin, JWT flow); login has password visibility toggle
 - Household create, join, list
-- Pertences: full CRUD with location grouping and category filtering
-- Pertences: resolve/restore workflow (`POST .../resolve`, `POST .../restore`) — backend only
-- Locations: create, list, update, delete (with UI for create)
-- Categories: full CRUD (backend only; no UI yet)
+- Pertences: full CRUD with location grouping, quantity display (×N), destination filter chips, category assignment in item-form
+- Pertences: resolve/restore workflow (`POST .../resolve`, `POST .../restore`) — **backend only, no web UI**
+- Locations: full CRUD end-to-end including edit and delete modals in the Pertences tab
+- Categories: full CRUD on backend; assignable to items via item-form; category filter chips in listing are hidden
 - PantryController: full CRUD backend
+- Dashboard: two-level loading (householdsLoading + dataLoading); summary widget shows real total value + real low-stock count
 
 ### Using mock data
 - Dashboard timeline widget
-- Dashboard summary "Em Falta" (low stock count)
 
-### Known issues / gaps (from ENDPOINT_GAP_ANALYSIS.md)
-- `InventoryItem.location` (string) legacy column removed in migration `RemoveLegacyLocationField`; `locationId` FK is now the canonical field.
+### Known issues / gaps
 - `tags` field is stored as raw JSONB string (stringified array) — not a proper FK-based system yet.
-- `destination` field (Take/Sell/Donate etc.) is Pertences-only but is on the shared `InventoryItem` DTO.
-- Dashboard summary endpoint (`GET /api/dashboard/summary`) and timeline endpoint (`GET /api/dashboard/timeline`) not yet implemented.
-- `PUT /api/users/me` and `GET /api/household/{id}/members` not yet implemented.
-- Despensa tab — UI pendente de implementação (placeholder "Em breve" ativo; backend PantryController funcional).
+- `destination` field (Keep/Sell/Donate/Trash/Undecided) is Pertences-only but lives on the shared `InventoryItem` model.
+- `ownerId` is accepted on create/update requests but not exposed in `ItemResponse`.
+- Pertences resolve/restore — backend endpoints exist (`POST .../resolve`, `POST .../restore`); `InventoryService` (frontend) has no `resolveItem()`/`restoreItem()` methods yet; no web UI for the workflow.
+- Category filter chips in Pertences listing are present in the template but hidden (`class="hidden"`) — not visible to users.
+- `CategoryController` exists on the backend (full CRUD); no management UI yet (only assignable via item-form).
+- `GET /api/dashboard/summary` and `GET /api/dashboard/timeline` not implemented (no `DashboardController`).
+- `PUT /api/users/me` not implemented (no `UsersController`).
+- `GET /api/household/{id}/members` not implemented (not in `HouseholdController`).
+- Despensa tab — UI pendente de implementação (placeholder "Em breve" ativo; backend `PantryController` funcional).
 - Server-side filtering by `locationId` and `category` for items is implemented but frontend still filters client-side for Pertences.
 - Tasks and Budget modules are empty stubs.
 

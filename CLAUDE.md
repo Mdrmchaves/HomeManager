@@ -105,7 +105,8 @@ HomeManager/
 │   │   │   ├── InventoryController.cs
 │   │   │   ├── LocationController.cs
 │   │   │   ├── CategoryController.cs
-│   │   │   └── PantryController.cs
+│   │   │   ├── PantryController.cs
+│   │   │   └── UsersController.cs
 │   │   ├── Data/
 │   │   │   ├── ApplicationDbContext.cs
 │   │   │   ├── ApplicationDbContextFactory.cs
@@ -131,12 +132,14 @@ HomeManager/
 │   │   │   │   ├── CategoryResponse.cs
 │   │   │   │   ├── PantryItemResponse.cs
 │   │   │   │   ├── ItemResponse.cs
+│   │   │   │   ├── UserResponse.cs
 │   │   │   │   └── Requests/
 │   │   │   │       ├── CreateItemRequest.cs / UpdateItemRequest.cs
 │   │   │   │       ├── CreateLocationRequest.cs / UpdateLocationRequest.cs
 │   │   │   │       ├── CreateCategoryRequest.cs / UpdateCategoryRequest.cs
 │   │   │   │       ├── CreatePantryItemRequest.cs / UpdatePantryItemRequest.cs
-│   │   │   │       └── CreateHouseholdRequest.cs
+│   │   │   │       ├── CreateHouseholdRequest.cs
+│   │   │   │       └── UpdateUserRequest.cs
 │   │   │   ├── Inventory/
 │   │   │   │   ├── InventoryItem.cs
 │   │   │   │   ├── ItemList.cs
@@ -433,6 +436,19 @@ No auth. Returns `{ status: "healthy", timestamp, service }`.
 
 ---
 
+### Users — `/api/users` [Authorize]
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/users/me` | Current user profile → `ApiResponse<UserResponse>` |
+| `PUT` | `/api/users/me` | Update current user's name → `ApiResponse<UserResponse>` |
+
+**UpdateUserRequest**: `{ name: string }` (required, max 255 chars — validated by FluentValidation)
+
+**UserResponse**: `{ id, email, name, createdAt, updatedAt }`
+
+---
+
 ### Household — `/api/household` [Authorize]
 
 | Method | Route | Description |
@@ -701,6 +717,7 @@ Empty stubs — routes exist but no real UI yet.
 - Categories: full CRUD on backend; assignable to items via item-form; category filter chips in listing are hidden
 - PantryController: full CRUD backend
 - Dashboard: two-level loading (householdsLoading + dataLoading); summary widget shows real total value + real low-stock count
+- Users: `GET /api/users/me` and `PUT /api/users/me` (update name) — `UsersController` with direct DbContext access
 
 ### Using mock data
 - Dashboard timeline widget
@@ -712,7 +729,6 @@ Empty stubs — routes exist but no real UI yet.
 - Category filter chips in Pertences listing are present in the template but hidden (`class="hidden"`) — not visible to users.
 - `CategoryController` exists on the backend (full CRUD); no management UI yet (only assignable via item-form).
 - `GET /api/dashboard/summary` and `GET /api/dashboard/timeline` not implemented (no `DashboardController`).
-- `PUT /api/users/me` not implemented (no `UsersController`).
 - `GET /api/household/{id}/members` not implemented (not in `HouseholdController`).
 - Despensa tab — UI pendente de implementação (placeholder "Em breve" ativo; backend `PantryController` funcional).
 - Server-side filtering by `locationId` and `category` for items is implemented but frontend still filters client-side for Pertences.

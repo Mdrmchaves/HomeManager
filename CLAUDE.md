@@ -10,7 +10,7 @@ HomeManager is a Portuguese-language household management web app. It lets membe
 
 **Target audience**: Households of 1–N people sharing a living space.
 
-**Current state** (March 23, 2026):
+**Current state** (March 24, 2026):
 - Auth (Supabase), household creation/joining, and the Pertences inventory are fully functional end-to-end.
 - Login page has a password visibility toggle button ("olhinho").
 - Location full CRUD (create, edit, delete) is wired end-to-end including modals in the Pertences tab.
@@ -481,8 +481,8 @@ location? (legacy), destination?, ownerId?, tags? (JSONB string),
 listId?, locationId?, categoryId?, quantity? (integer)
 ```
 
-**ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, status, resolvedAt?, createdAt, updatedAt }`
-Note: `ownerId`, `tags`, `listId` are NOT exposed in the response DTO. The legacy `location` string column was dropped in migration `RemoveLegacyLocationField`.
+**ItemResponse**: `{ id, householdId, name, description?, value?, photoUrl?, locationId?, locationName?, categoryId?, categoryName?, quantity?, destination?, ownerId?, status, resolvedAt?, createdAt, updatedAt }`
+Note: `tags` and `listId` are NOT exposed in the response DTO. The legacy `location` string column was dropped in migration `RemoveLegacyLocationField`.
 
 ---
 
@@ -708,7 +708,6 @@ Empty stubs — routes exist but no real UI yet.
 ### Known issues / gaps
 - `tags` field is stored as raw JSONB string (stringified array) — not a proper FK-based system yet.
 - `destination` field (Keep/Sell/Donate/Trash/Undecided) is Pertences-only but lives on the shared `InventoryItem` model.
-- `ownerId` is accepted on create/update requests but not exposed in `ItemResponse`.
 - Pertences resolve/restore — backend endpoints exist (`POST .../resolve`, `POST .../restore`); `InventoryService` (frontend) has no `resolveItem()`/`restoreItem()` methods yet; no web UI for the workflow.
 - Category filter chips in Pertences listing are present in the template but hidden (`class="hidden"`) — not visible to users.
 - `CategoryController` exists on the backend (full CRUD); no management UI yet (only assignable via item-form).

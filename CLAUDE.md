@@ -473,17 +473,67 @@ All GET/POST responses wrapped in `ApiResponse<T>` envelope. PUT/DELETE return 2
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| `GET` | `/api/inventory/items` | Items for current user's households → `ApiResponse<List<ItemResponse>>` |
-| `GET` | `/api/inventory/items/{id}` | Single item → `ApiResponse<ItemResponse>` |
-| `POST` | `/api/inventory/items` | Create item → 201 + `ApiResponse<ItemResponse>` |
-| `PUT` | `/api/inventory/items/{id}` | Update item (204 No Content) |
-| `DELETE` | `/api/inventory/items/{id}` | Delete item (204 No Content) |
-| `POST` | `/api/inventory/items/{id}/resolve` | Mark item resolved → 200 + `ApiResponse<ItemResponse>` |
-| `POST` | `/api/inventory/items/{id}/restore` | Restore item to active → 200 + `ApiResponse<ItemResponse>` |
+| `GET` | `/api/inventory/items` | Items paginados — `ApiResponse<PagedResponse<ItemResponse>>` |
+| `GET` | `/api/inventory/items/search` | Pesquisa por nome — `ApiResponse<PagedResponse<ItemResponse>>` |
+| `GET` | `/api/inventory/items/counts/by-location` | Contadores por localização — `ApiResponse<List<LocationCountResponse>>` |
+| `GET` | `/api/inventory/items/counts/by-destination` | Contadores por destino — `ApiResponse<List<DestinationCountResponse>>` |
+| `GET` | `/api/inventory/items/{id}` | Item único — `ApiResponse<ItemResponse>` |
+| `POST` | `/api/inventory/items` | Criar item — 201 + `ApiResponse<ItemResponse>` |
+| `PUT` | `/api/inventory/items/{id}` | Actualizar item — 204 No Content |
+| `DELETE` | `/api/inventory/items/{id}` | Apagar item — 204 No Content |
+| `POST` | `/api/inventory/items/{id}/resolve` | Marcar resolvido — 200 + `ApiResponse<ItemResponse>` |
+| `POST` | `/api/inventory/items/{id}/restore` | Restaurar para activo — 200 + `ApiResponse<ItemResponse>` |
 
-**Query params** (GET list): `householdId?`, `locationId?`, `category?` (name string), `status?` (`"active"` default \| `"resolved"`)
+**Query params — `GET /api/inventory/items`:**
+- `householdId?` (Guid)
+- `locationId?` (string — Guid normal ou `"null"` para itens sem localização)
+- `destination?` (string — valor normal ou `"null"` para itens sem destino)
+- `category?` (string — nome da categoria)
+- `status?` (string — `"active"` default | `"resolved"`)
+- `page?` (int — default 1)
+- `pageSize?` (int — default 30, máximo 50)
 
-**Default behaviour**: without `status` param, GET list returns only `status = 'active'` items — safe for existing frontend.
+Ordenação: sempre `OrderByDescending(CreatedAt)`.
+
+**Query params — `GET /api/inventory/items/search`:**
+- `householdId?` (Guid)
+- `q` (string — obrigatório, mínimo 2 caracteres — retorna 400 se inválido)
+- `page?` (int — default 1)
+- `pageSize?` (int — default 30, máximo 50)
+
+Pesquisa por `ILike` no campo `Name`. Retorna apenas `status = "active"`.
+Ordenação: `OrderByDescending(CreatedAt)`.
+
+**Query params — `GET /api/inventory/items/counts/by-location`:**
+- `householdId` (Guid — obrigatório)
+
+Retorna apenas `status = "active"`. Ordenado por `Count` descendente, "Sem localização" (`locationId: null`) sempre por último.
+
+**Query params — `GET /api/inventory/items/counts/by-destination`:**
+- `householdId` (Guid — obrigatório)
+
+Retorna apenas `status = "active"`. Ordenado: `keep → sell → donate → discard → null` por último.
+
+**`PagedResponse<T>`:**
+```json
+{
+  "items": [],
+  "total": 412,
+  "page": 1,
+  "pageSize": 30,
+  "hasMore": true
+}
+```
+
+**`LocationCountResponse`:**
+```json
+{ "locationId": "uuid|null", "locationName": "Guarda-roupa", "icon": "👗", "count": 121 }
+```
+
+**`DestinationCountResponse`:**
+```json
+{ "destination": "sell|null", "count": 34 }
+```
 
 **ResolveItemRequest** (POST resolve body): `{ destination: string }`
 - Sets `status = "resolved"`, `resolved_at = now`, `destination = <value>`

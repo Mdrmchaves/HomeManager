@@ -20,31 +20,56 @@ public class HouseholdService : IHouseholdService
 
     public async Task<ApiResponse<List<Household>>> GetMyHouseholds(Guid id, Guid userId)
     {
-        var households = await _context
-            .Households.Include(h => h.HouseholdUsers)
-                .ThenInclude(hu => hu.User)
-            .Where(h => h.HouseholdUsers.Any(hu => hu.UserId == userId))
-            .ToListAsync();
+        _logger.LogInformation("Fetching households for user {UserId}", userId);
+        try
+        {
+            var households = await _context
+                .Households.Include(h => h.HouseholdUsers)
+                    .ThenInclude(hu => hu.User)
+                .Where(h => h.HouseholdUsers.Any(hu => hu.UserId == userId))
+                .ToListAsync();
 
-        return ApiResponse<List<Household>>.SuccessResponse(
-            households,
-            $"Found {households.Count} household(s)"
-        );
+            return ApiResponse<List<Household>>.SuccessResponse(
+                households,
+                $"Found {households.Count} household(s)"
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching households for user {UserId}", userId);
+            return ApiResponse<List<Household>>.ErrorResponse(
+                $"Error fetching households: {ex.Message}"
+            );
+        }
     }
 
     public async Task<ApiResponse<Household>> GetHouseholdAsync(Guid id, Guid userId)
     {
-        var household = await _context
-            .Households.Include(h => h.HouseholdUsers)
-                .ThenInclude(hu => hu.User)
-            .FirstOrDefaultAsync(h =>
-                h.Id == id && h.HouseholdUsers.Any(hu => hu.UserId == userId)
+        _logger.LogInformation("Fetching household {HouseholdId} for user {UserId}", id, userId);
+        try
+        {
+            var household = await _context
+                .Households.Include(h => h.HouseholdUsers)
+                    .ThenInclude(hu => hu.User)
+                .FirstOrDefaultAsync(h =>
+                    h.Id == id && h.HouseholdUsers.Any(hu => hu.UserId == userId)
+                );
+
+            if (household == null)
+                return ApiResponse<Household>.ErrorResponse("Household not found");
+
+            return ApiResponse<Household>.SuccessResponse(household);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error fetching household {HouseholdId} for user {UserId}",
+                id,
+                userId
             );
-
-        if (household == null)
-            return ApiResponse<Household>.ErrorResponse("Household not found");
-
-        return ApiResponse<Household>.SuccessResponse(household);
+            return ApiResponse<Household>.ErrorResponse($"Error fetching household: {ex.Message}");
+        }
     }
 
     public async Task<ApiResponse<Household>> CreateHouseholdAsync(
@@ -52,6 +77,7 @@ public class HouseholdService : IHouseholdService
         Guid userId
     )
     {
+        _logger.LogInformation("Creating household for user {UserId}", userId);
         try
         {
             var inviteCode = this.GenerateInviteCode(request.Name);
@@ -79,6 +105,7 @@ public class HouseholdService : IHouseholdService
 
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("Household created successfully: {HouseholdId}", household.Id);
             return ApiResponse<Household>.SuccessResponse(
                 household,
                 "Household created successfully"
@@ -93,6 +120,7 @@ public class HouseholdService : IHouseholdService
 
     public async Task<ApiResponse<Household>> JoinHouseholdAsync(string inviteCode, Guid userId)
     {
+        _logger.LogInformation("Joining household for user {UserId}", userId);
         try
         {
             var household = await _context.Households.FirstOrDefaultAsync(h =>
@@ -100,16 +128,26 @@ public class HouseholdService : IHouseholdService
             );
 
             if (household == null)
+            {
+                _logger.LogError(
+                    "Invalid invite code {InviteCode} used by user {UserId}",
+                    inviteCode,
+                    userId
+                );
                 return ApiResponse<Household>.ErrorResponse("Invalid invite code");
+            }
 
             var alreadyMember = await _context.HouseholdUsers.AnyAsync(hu =>
                 hu.HouseholdId == household.Id && hu.UserId == userId
             );
 
             if (alreadyMember)
+            {
+                _logger.LogWarning("User {UserId} is already a member of this household", userId);
                 return ApiResponse<Household>.ErrorResponse(
                     "You are already a member of this household"
                 );
+            }
 
             var householdUser = new HouseholdUser
             {
@@ -122,6 +160,11 @@ public class HouseholdService : IHouseholdService
             _context.HouseholdUsers.Add(householdUser);
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation(
+                "User {UserId} Successfully joined household {HouseholdId}",
+                userId,
+                household.Id
+            );
             return ApiResponse<Household>.SuccessResponse(
                 household,
                 "Successfully joined household"

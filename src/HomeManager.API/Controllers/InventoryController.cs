@@ -1,12 +1,10 @@
 using System.Security.Claims;
-using HomeManager.API.Data;
 using HomeManager.API.Models;
 using HomeManager.API.Models.DTOs;
 using HomeManager.API.Models.DTOs.Requests;
-using HomeManager.API.Models.Inventory;
+using HomeManager.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HomeManager.API.Controllers;
 
@@ -15,13 +13,11 @@ namespace HomeManager.API.Controllers;
 [Authorize]
 public class InventoryController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
-    private readonly ILogger<InventoryController> _logger;
+    private readonly IInventoryService _inventoryService;
 
-    public InventoryController(ApplicationDbContext context, ILogger<InventoryController> logger)
+    public InventoryController(IInventoryService inventoryService)
     {
-        _context = context;
-        _logger = logger;
+        _inventoryService = inventoryService;
     }
 
     private Guid GetUserId()
@@ -35,141 +31,138 @@ public class InventoryController : ControllerBase
         return Guid.Parse(userIdClaim);
     }
 
-    // GET: api/inventory/items?householdId={guid}&locationId={guid}&category={string}&status={string}
+    // GET: api/inventory/items?householdId={guid}&locationId={guid|"null"}&category={string}&status={string}&destination={string}&page={int}&pageSize={int}
     [HttpGet("items")]
-    public async Task<ActionResult<ApiResponse<List<ItemResponse>>>> GetItems(
+    public async Task<ActionResult<ApiResponse<PagedResponse<ItemResponse>>>> GetItems(
         [FromQuery] Guid? householdId = null,
-        [FromQuery] Guid? locationId = null,
+        [FromQuery(Name = "locationId")] string? locationIdRaw = null,
         [FromQuery] string? category = null,
-        [FromQuery] string? status = null
+        [FromQuery] string? status = null,
+        [FromQuery] string? destination = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30
     )
     {
-        var userId = GetUserId();
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
 
-        var statusFilter = string.IsNullOrEmpty(status) ? "active" : status;
+        var result = await _inventoryService.GetItemsAsync(
+            GetUserId(),
+            householdId,
+            locationIdRaw,
+            category,
+            status,
+            destination,
+            page,
+            pageSize
+        );
 
-        var query = _context
-            .InventoryItems.Include(i => i.LocationRef)
-            .Include(i => i.Category)
-            .Where(i => i.Household.HouseholdUsers.Any(hu => hu.UserId == userId))
-            .Where(i => i.Status == statusFilter);
+        if (!result.Success)
+            return StatusCode(500, result);
 
-        if (householdId.HasValue)
-            query = query.Where(i => i.HouseholdId == householdId.Value);
+        return Ok(result);
+    }
 
-        if (locationId.HasValue)
-            query = query.Where(i => i.LocationId == locationId.Value);
+    // GET: api/inventory/items/counts/by-location?householdId={guid}
+    [HttpGet("items/counts/by-location")]
+    public async Task<ActionResult<ApiResponse<List<LocationCountResponse>>>> GetCountsByLocation(
+        [FromQuery] Guid householdId
+    )
+    {
+        var result = await _inventoryService.GetCountsByLocationAsync(GetUserId(), householdId);
 
-        if (!string.IsNullOrEmpty(category))
-            query = query.Where(i => i.Category != null && i.Category.Name == category);
+        if (!result.Success)
+        {
+            if (result.Message == "Access denied")
+                return Forbid();
+            return StatusCode(500, result);
+        }
 
-        var items = await query.OrderByDescending(i => i.CreatedAt).ToListAsync();
+        return Ok(result);
+    }
 
-        return Ok(ApiResponse<List<ItemResponse>>.SuccessResponse(
-            items.Select(ItemResponse.FromEntity).ToList()
-        ));
+    // GET: api/inventory/items/counts/by-destination?householdId={guid}
+    [HttpGet("items/counts/by-destination")]
+    public async Task<
+        ActionResult<ApiResponse<List<DestinationCountResponse>>>
+    > GetCountsByDestination([FromQuery] Guid householdId)
+    {
+        var result = await _inventoryService.GetCountsByDestinationAsync(GetUserId(), householdId);
+
+        if (!result.Success)
+        {
+            if (result.Message == "Access denied")
+                return Forbid();
+            return StatusCode(500, result);
+        }
+
+        return Ok(result);
+    }
+
+    // GET: api/inventory/items/search?householdId={guid}&q={string}&page={int}&pageSize={int}
+    [HttpGet("items/search")]
+    public async Task<ActionResult<ApiResponse<PagedResponse<ItemResponse>>>> SearchItems(
+        [FromQuery] Guid? householdId = null,
+        [FromQuery] string? q = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 30
+    )
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Min(pageSize, 50);
+
+        var result = await _inventoryService.SearchItemsAsync(
+            GetUserId(),
+            householdId,
+            q ?? string.Empty,
+            page,
+            pageSize
+        );
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
 
     // GET: api/inventory/items/{id}
     [HttpGet("items/{id}")]
     public async Task<ActionResult<ApiResponse<ItemResponse>>> GetItem(Guid id)
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.GetItemAsync(id, GetUserId());
 
-        var item = await _context
-            .InventoryItems.Include(i => i.LocationRef)
-            .Include(i => i.Category)
-            .Include(i => i.Household)
-            .FirstOrDefaultAsync(i =>
-                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
-            );
-
-        if (item == null)
+        if (!result.Success)
             return NotFound();
 
-        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
+        return Ok(result);
     }
 
     // POST: api/inventory/items
     [HttpPost("items")]
-    public async Task<ActionResult<ApiResponse<ItemResponse>>> CreateItem(CreateItemRequest request)
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> CreateItem(
+        CreateItemRequest request
+    )
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.CreateItemAsync(request, GetUserId());
 
-        // Verifica se user pertence à household
-        var hasAccess = await _context.HouseholdUsers.AnyAsync(hu =>
-            hu.HouseholdId == request.HouseholdId && hu.UserId == userId
-        );
-
-        if (!hasAccess)
+        if (!result.Success)
         {
-            _logger.LogWarning("Access denied: user {UserId} attempted to create item in household {HouseholdId}",
-                userId, request.HouseholdId);
-            return Forbid();
+            if (result.Message == "Access denied")
+                return Forbid();
+            return BadRequest(result);
         }
 
-        var item = new InventoryItem
-        {
-            Id = Guid.NewGuid(),
-            HouseholdId = request.HouseholdId,
-            Name = request.Name,
-            Description = request.Description,
-            Value = request.Value,
-            PhotoUrl = request.PhotoUrl,
-            Destination = request.Destination,
-            OwnerId = request.OwnerId,
-            Tags = request.Tags,
-            ListId = request.ListId,
-            LocationId = request.LocationId,
-            CategoryId = request.CategoryId,
-            Quantity = request.Quantity,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        _context.InventoryItems.Add(item);
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Item {ItemId} created in household {HouseholdId} by user {UserId}",
-            item.Id, item.HouseholdId, userId);
-
-        // Load navigation properties for the response
-        await _context.Entry(item).Reference(i => i.LocationRef).LoadAsync();
-        await _context.Entry(item).Reference(i => i.Category).LoadAsync();
-
-        var response = ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item));
-        return CreatedAtAction(nameof(GetItem), new { id = item.Id }, response);
+        return CreatedAtAction(nameof(GetItem), new { id = result.Data!.Id }, result);
     }
 
     // PUT: api/inventory/items/{id}
     [HttpPut("items/{id}")]
     public async Task<IActionResult> UpdateItem(Guid id, UpdateItemRequest request)
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.UpdateItemAsync(id, request, GetUserId());
 
-        var item = await _context
-            .InventoryItems.Include(i => i.Household)
-            .FirstOrDefaultAsync(i =>
-                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
-            );
-
-        if (item == null)
+        if (!result.Success)
             return NotFound();
-
-        item.Name = request.Name ?? item.Name;
-        item.Description = request.Description ?? item.Description;
-        item.Value = request.Value ?? item.Value;
-        item.PhotoUrl = request.PhotoUrl ?? item.PhotoUrl;
-        item.Destination = request.Destination ?? item.Destination;
-        item.OwnerId = request.OwnerId ?? item.OwnerId;
-        item.Tags = request.Tags ?? item.Tags;
-        item.ListId = request.ListId ?? item.ListId;
-        item.LocationId = request.LocationId ?? item.LocationId;
-        item.CategoryId = request.CategoryId ?? item.CategoryId;
-        item.Quantity = request.Quantity ?? item.Quantity;
-        item.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Item {ItemId} updated by user {UserId}", id, userId);
 
         return NoContent();
     }
@@ -178,77 +171,38 @@ public class InventoryController : ControllerBase
     [HttpDelete("items/{id}")]
     public async Task<IActionResult> DeleteItem(Guid id)
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.DeleteItemAsync(id, GetUserId());
 
-        var item = await _context
-            .InventoryItems.Include(i => i.Household)
-            .FirstOrDefaultAsync(i =>
-                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
-            );
-
-        if (item == null)
+        if (!result.Success)
             return NotFound();
-
-        _context.InventoryItems.Remove(item);
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Item {ItemId} deleted by user {UserId}", id, userId);
 
         return NoContent();
     }
 
     // POST: api/inventory/items/{id}/resolve
     [HttpPost("items/{id}/resolve")]
-    public async Task<ActionResult<ApiResponse<ItemResponse>>> ResolveItem(Guid id, ResolveItemRequest request)
+    public async Task<ActionResult<ApiResponse<ItemResponse>>> ResolveItem(
+        Guid id,
+        ResolveItemRequest request
+    )
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.ResolveItemAsync(id, request, GetUserId());
 
-        var item = await _context
-            .InventoryItems.Include(i => i.Household)
-            .Include(i => i.LocationRef)
-            .Include(i => i.Category)
-            .FirstOrDefaultAsync(i =>
-                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
-            );
-
-        if (item == null)
+        if (!result.Success)
             return NotFound();
 
-        item.Status = "resolved";
-        item.ResolvedAt = DateTime.UtcNow;
-        item.Destination = request.Destination;
-        item.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Item {ItemId} resolved by user {UserId} with destination {Destination}",
-            id, userId, request.Destination);
-
-        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
+        return Ok(result);
     }
 
     // POST: api/inventory/items/{id}/restore
     [HttpPost("items/{id}/restore")]
     public async Task<ActionResult<ApiResponse<ItemResponse>>> RestoreItem(Guid id)
     {
-        var userId = GetUserId();
+        var result = await _inventoryService.RestoreItemAsync(id, GetUserId());
 
-        var item = await _context
-            .InventoryItems.Include(i => i.Household)
-            .Include(i => i.LocationRef)
-            .Include(i => i.Category)
-            .FirstOrDefaultAsync(i =>
-                i.Id == id && i.Household.HouseholdUsers.Any(hu => hu.UserId == userId)
-            );
-
-        if (item == null)
+        if (!result.Success)
             return NotFound();
 
-        item.Status = "active";
-        item.ResolvedAt = null;
-        item.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        _logger.LogInformation("Item {ItemId} restored to active by user {UserId}", id, userId);
-
-        return Ok(ApiResponse<ItemResponse>.SuccessResponse(ItemResponse.FromEntity(item)));
+        return Ok(result);
     }
 }

@@ -22,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILocationService, LocationService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IPantryService, PantryService>();
+        services.AddScoped<IInventoryService, InventoryService>();
 
         return services;
     }

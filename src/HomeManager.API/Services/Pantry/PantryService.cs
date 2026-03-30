@@ -192,9 +192,8 @@ public class PantryService : IPantryService
 
     private static PantryItemResponse ToResponse(PantryItem item)
     {
-        var status = item.MinQuantity.HasValue && item.Quantity <= item.MinQuantity.Value
-            ? "low"
-            : "ok";
+        var status =
+            item.MinQuantity.HasValue && item.Quantity <= item.MinQuantity.Value ? "low" : "ok";
 
         return new PantryItemResponse(
             item.Id,

@@ -59,30 +59,8 @@ public class FinanceService : IFinanceService
                 .OrderBy(a => a.Name)
                 .ToListAsync();
 
-            // Compute balance per account from all transactions
-            var accountIds = accounts.Select(a => a.Id).ToList();
-
-            var income = await m_context.FinanceTransactions
-                .Where(tx => tx.AccountId.HasValue && accountIds.Contains(tx.AccountId!.Value) && tx.Type == "income")
-                .GroupBy(tx => tx.AccountId!.Value)
-                .Select(g => new { AccountId = g.Key, Total = g.Sum(tx => tx.Amount) })
-                .ToDictionaryAsync(x => x.AccountId, x => x.Total);
-
-            var expenses = await m_context.FinanceTransactions
-                .Where(tx => tx.AccountId.HasValue && accountIds.Contains(tx.AccountId!.Value) && tx.Type == "expense")
-                .GroupBy(tx => tx.AccountId!.Value)
-                .Select(g => new { AccountId = g.Key, Total = g.Sum(tx => tx.Amount) })
-                .ToDictionaryAsync(x => x.AccountId, x => x.Total);
-
-            var responses = accounts.Select(acc =>
-            {
-                var inc = income.TryGetValue(acc.Id, out var i) ? i : 0m;
-                var exp = expenses.TryGetValue(acc.Id, out var e) ? e : 0m;
-                var computedBalance = (acc.Balance ?? 0m) + inc - exp;
-                return AccountResponse.FromEntity(acc, computedBalance);
-            }).ToList();
-
-            return ApiResponse<List<AccountResponse>>.SuccessResponse(responses);
+            return ApiResponse<List<AccountResponse>>.SuccessResponse(
+                accounts.Select(AccountResponse.FromEntity).ToList());
         }
         catch (Exception ex)
         {
@@ -109,7 +87,7 @@ public class FinanceService : IFinanceService
                 CloseDay = request.CloseDay,
                 DueDay = request.DueDay,
                 Limit = request.Limit,
-                Balance = request.InitialBalance,
+                Balance = request.Balance,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -143,7 +121,7 @@ public class FinanceService : IFinanceService
             if (request.CloseDay.HasValue) account.CloseDay = request.CloseDay;
             if (request.DueDay.HasValue) account.DueDay = request.DueDay;
             if (request.Limit.HasValue) account.Limit = request.Limit;
-            if (request.InitialBalance.HasValue) account.Balance = request.InitialBalance;
+            if (request.Balance.HasValue) account.Balance = request.Balance;
 
             await m_context.SaveChangesAsync();
 
@@ -178,6 +156,38 @@ public class FinanceService : IFinanceService
         {
             m_logger.LogError(ex, "Error deleting account {AccountId}", id);
             return ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<AccountResponse>> RecalculateAccountBalanceAsync(Guid accountId, Guid userId)
+    {
+        try
+        {
+            var account = await m_context.FinanceAccounts.FindAsync(accountId);
+            if (account is null)
+                return ApiResponse<AccountResponse>.ErrorResponse("Account not found");
+
+            if (!await HasAccessAsync(account.HouseholdId, userId))
+                return ApiResponse<AccountResponse>.ErrorResponse("Access denied");
+
+            var income = await m_context.FinanceTransactions
+                .Where(tx => tx.AccountId == accountId && tx.Type == "income")
+                .SumAsync(tx => (decimal?)tx.Amount) ?? 0m;
+
+            var expenses = await m_context.FinanceTransactions
+                .Where(tx => tx.AccountId == accountId && tx.Type == "expense")
+                .SumAsync(tx => (decimal?)tx.Amount) ?? 0m;
+
+            account.Balance = income - expenses;
+            await m_context.SaveChangesAsync();
+
+            m_logger.LogInformation("Balance recalculated for account {AccountId}: {Balance}", accountId, account.Balance);
+            return ApiResponse<AccountResponse>.SuccessResponse(AccountResponse.FromEntity(account), "Balance recalculated");
+        }
+        catch (Exception ex)
+        {
+            m_logger.LogError(ex, "Error recalculating balance for account {AccountId}", accountId);
+            return ApiResponse<AccountResponse>.ErrorResponse($"Error: {ex.Message}");
         }
     }
 
@@ -295,6 +305,11 @@ public class FinanceService : IFinanceService
             };
 
             m_context.FinanceTransactions.Add(tx);
+
+            // Update account balance
+            if (account is not null)
+                account.Balance = (account.Balance ?? 0m) + (tx.Type == "income" ? tx.Amount : -tx.Amount);
+
             await m_context.SaveChangesAsync();
 
             // Reload with navigation
@@ -323,6 +338,11 @@ public class FinanceService : IFinanceService
             if (!await HasAccessAsync(tx.HouseholdId, userId))
                 return ApiResponse<TransactionResponse>.ErrorResponse("Access denied");
 
+            // Capture old values before mutation
+            var oldAccountId = tx.AccountId;
+            var oldAmount = tx.Amount;
+            var oldType = tx.Type;
+
             if (request.AccountId.HasValue) tx.AccountId = request.AccountId;
             if (request.Description is not null) tx.Description = request.Description;
             if (request.Amount.HasValue) tx.Amount = request.Amount.Value;
@@ -342,6 +362,22 @@ public class FinanceService : IFinanceService
             else if (!string.IsNullOrEmpty(request.RefMonth))
             {
                 tx.RefMonth = request.RefMonth;
+            }
+
+            // Reverse old balance effect
+            if (oldAccountId.HasValue)
+            {
+                var oldAccount = await m_context.FinanceAccounts.FindAsync(oldAccountId.Value);
+                if (oldAccount is not null)
+                    oldAccount.Balance = (oldAccount.Balance ?? 0m) - (oldType == "income" ? oldAmount : -oldAmount);
+            }
+
+            // Apply new balance effect
+            if (tx.AccountId.HasValue)
+            {
+                var newAccount = await m_context.FinanceAccounts.FindAsync(tx.AccountId.Value);
+                if (newAccount is not null)
+                    newAccount.Balance = (newAccount.Balance ?? 0m) + (tx.Type == "income" ? tx.Amount : -tx.Amount);
             }
 
             await m_context.SaveChangesAsync();
@@ -366,6 +402,14 @@ public class FinanceService : IFinanceService
 
             if (!await HasAccessAsync(tx.HouseholdId, userId))
                 return ApiResponse<bool>.ErrorResponse("Access denied");
+
+            // Reverse balance effect before deleting
+            if (tx.AccountId.HasValue)
+            {
+                var account = await m_context.FinanceAccounts.FindAsync(tx.AccountId.Value);
+                if (account is not null)
+                    account.Balance = (account.Balance ?? 0m) - (tx.Type == "income" ? tx.Amount : -tx.Amount);
+            }
 
             m_context.FinanceTransactions.Remove(tx);
             await m_context.SaveChangesAsync();
@@ -474,7 +518,7 @@ public class FinanceService : IFinanceService
                     CloseDay = item.Type == "cc" ? item.CloseDay : null,
                     DueDay = item.Type == "cc" ? item.DueDay : null,
                     Limit = item.Type == "cc" ? item.Limit : null,
-                    Balance = item.InitialBalance,
+                    Balance = item.Balance,
                     CreatedAt = DateTime.UtcNow,
                 });
                 imported++;

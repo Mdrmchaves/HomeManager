@@ -66,7 +66,7 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
             </div>
           }
 
-          <input formControlName="initialBalance" placeholder="Saldo inicial (transações não registadas)" type="number" step="0.01"
+          <input formControlName="balance" placeholder="Saldo actual" type="number" step="0.01"
             class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
 
           <!-- Actions -->
@@ -122,6 +122,14 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
                   · Saldo: {{ acc.balance | number:'1.2-2' }} {{ acc.currency }}
                 </p>
               </div>
+              <!-- Recalculate -->
+              <button (click)="recalculate(acc)"
+                class="p-1.5 rounded-lg text-stone-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                title="Recalcular saldo a partir das transações">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+              </button>
               <!-- Edit -->
               <button (click)="startEdit(acc)"
                 class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors"
@@ -169,7 +177,7 @@ export class AccountsTabComponent implements OnChanges {
     closeDay: [null as number | null],
     dueDay: [null as number | null],
     limit: [null as number | null],
-    initialBalance: [null as number | null],
+    balance: [null as number | null],
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -185,7 +193,7 @@ export class AccountsTabComponent implements OnChanges {
       closeDay: acc.closeDay ?? null,
       dueDay: acc.dueDay ?? null,
       limit: acc.limit ?? null,
-      initialBalance: acc.initialBalance ?? null,
+      balance: acc.balance,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -212,7 +220,7 @@ export class AccountsTabComponent implements OnChanges {
           closeDay: isCC ? v.closeDay ?? undefined : undefined,
           dueDay: isCC ? v.dueDay ?? undefined : undefined,
           limit: isCC ? v.limit ?? undefined : undefined,
-          initialBalance: v.initialBalance ?? undefined,
+          balance: v.balance ?? undefined,
         }));
         this.cancelEdit();
       } else {
@@ -224,15 +232,24 @@ export class AccountsTabComponent implements OnChanges {
           closeDay: isCC ? v.closeDay ?? undefined : undefined,
           dueDay: isCC ? v.dueDay ?? undefined : undefined,
           limit: isCC ? v.limit ?? undefined : undefined,
-          initialBalance: v.initialBalance ?? undefined,
+          balance: v.balance ?? undefined,
         }));
-        this.form.patchValue({ name: '', closeDay: null, dueDay: null, limit: null, initialBalance: null });
+        this.form.patchValue({ name: '', closeDay: null, dueDay: null, limit: null, balance: null });
       }
       await this.load();
     } catch {
       // ignore
     } finally {
       this.saving.set(false);
+    }
+  }
+
+  async recalculate(acc: FinanceAccount): Promise<void> {
+    try {
+      const updated = await firstValueFrom(this.financeService.recalculateAccount(acc.id));
+      this.accounts.update(list => list.map(a => a.id === acc.id ? updated : a));
+    } catch {
+      // ignore
     }
   }
 

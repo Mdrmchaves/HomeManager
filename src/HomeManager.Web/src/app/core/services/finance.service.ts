@@ -56,6 +56,12 @@ export class FinanceService {
       .pipe(map(r => r.data));
   }
 
+  recalculateAccount(id: string): Observable<FinanceAccount> {
+    return this.http
+      .post<ApiResponse<FinanceAccount>>(`${this.apiUrl}/accounts/${id}/recalculate`, {})
+      .pipe(map(r => r.data));
+  }
+
   // ── Transactions ──────────────────────────────────────────────────────────
 
   getTransactions(

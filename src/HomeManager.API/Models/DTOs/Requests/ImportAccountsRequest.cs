@@ -12,5 +12,5 @@ public record ImportAccountItem(
     int? CloseDay,
     int? DueDay,
     decimal? Limit,
-    decimal? InitialBalance
+    decimal? Balance
 );

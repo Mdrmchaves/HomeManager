@@ -11,6 +11,7 @@ public interface IFinanceService
     Task<ApiResponse<AccountResponse>> CreateAccountAsync(CreateAccountRequest request, Guid userId);
     Task<ApiResponse<AccountResponse>> UpdateAccountAsync(Guid id, UpdateAccountRequest request, Guid userId);
     Task<ApiResponse<bool>> DeleteAccountAsync(Guid id, Guid userId);
+    Task<ApiResponse<AccountResponse>> RecalculateAccountBalanceAsync(Guid accountId, Guid userId);
 
     // Transactions
     Task<ApiResponse<PagedResponse<TransactionResponse>>> GetTransactionsAsync(

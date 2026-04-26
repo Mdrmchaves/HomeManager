@@ -68,6 +68,15 @@ public class FinanceController : ControllerBase
         return Ok(result);
     }
 
+    // POST: api/finance/accounts/{id}/recalculate
+    [HttpPost("accounts/{id}/recalculate")]
+    public async Task<ActionResult<ApiResponse<AccountResponse>>> RecalculateAccountBalance(Guid id)
+    {
+        var result = await m_financeService.RecalculateAccountBalanceAsync(id, GetUserId());
+        if (!result.Success) return result.Message == "Access denied" ? Forbid() : NotFound(result);
+        return Ok(result);
+    }
+
     // ── Transactions ──────────────────────────────────────────────────────────
 
     // GET: api/finance/transactions?householdId=&month=&accountId=&type=&category=&page=&pageSize=

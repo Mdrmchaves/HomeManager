@@ -8,5 +8,5 @@ public record CreateAccountRequest(
     int? CloseDay,
     int? DueDay,
     decimal? Limit,
-    decimal? InitialBalance
+    decimal? Balance
 );

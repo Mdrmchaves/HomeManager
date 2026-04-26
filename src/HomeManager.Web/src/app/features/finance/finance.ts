@@ -1,6 +1,7 @@
-import { Component, signal, computed, inject } from '@angular/core';
+import { Component, signal, computed, inject, effect } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { HouseholdService } from '../../core/services/household.service';
+import { FinanceStateService } from '../../core/services/finance-state.service';
 import { PillTabsComponent } from '../../shared/components/pill-tabs/pill-tabs';
 import { DashboardTabComponent } from './components/dashboard-tab/dashboard-tab';
 import { TransactionsTabComponent } from './components/transactions-tab/transactions-tab';
@@ -27,6 +28,7 @@ import { ImportModalComponent } from './components/import-modal/import-modal';
 })
 export class FinanceComponent {
   private householdService = inject(HouseholdService);
+  private financeState = inject(FinanceStateService);
 
   selectedHousehold = toSignal(this.householdService.selectedHousehold$);
   householdId = computed(() => this.selectedHousehold()?.id ?? '');
@@ -38,6 +40,15 @@ export class FinanceComponent {
 
   // Active month state — shared across all tabs
   activeMonth = signal(this.currentMonth());
+
+  constructor() {
+    // Kick off shared state init whenever household or month changes
+    effect(() => {
+      const id = this.householdId();
+      const month = this.activeMonth();
+      if (id) this.financeState.init(id, month);
+    });
+  }
 
   private currentMonth(): string {
     const now = new Date();

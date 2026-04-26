@@ -44,6 +44,9 @@ public class FinanceAccount
     [Column("balance")]
     public decimal? Balance { get; set; } // current balance override
 
+    [Column("is_active")]
+    public bool IsActive { get; set; } = true;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

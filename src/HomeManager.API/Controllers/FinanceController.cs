@@ -33,12 +33,14 @@ public class FinanceController : ControllerBase
 
     // ── Accounts ─────────────────────────────────────────────────────────────
 
-    // GET: api/finance/accounts?householdId={guid}&month={YYYY-MM}
+    // GET: api/finance/accounts?householdId={guid}&month={YYYY-MM}&includeInactive={bool}
     [HttpGet("accounts")]
     public async Task<ActionResult<ApiResponse<List<AccountResponse>>>> GetAccounts(
-        [FromQuery] Guid householdId, [FromQuery] string? month = null)
+        [FromQuery] Guid householdId,
+        [FromQuery] string? month = null,
+        [FromQuery] bool includeInactive = false)
     {
-        var result = await m_financeService.GetAccountsAsync(householdId, GetUserId(), month);
+        var result = await m_financeService.GetAccountsAsync(householdId, GetUserId(), month, includeInactive);
         return result.Success ? Ok(result) : Forbid();
     }
 

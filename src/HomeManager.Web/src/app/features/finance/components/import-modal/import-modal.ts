@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, signal, computed, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
+import { FinanceStateService } from '../../../../core/services/finance-state.service';
 import { FinanceAccount } from '../../../../core/models/finance-account.model';
 import { ImportResult, TransactionCategory } from '../../../../core/models/finance-transaction.model';
 
@@ -249,6 +250,7 @@ export class ImportModalComponent implements OnInit {
   @Output() closed = new EventEmitter<boolean>(); // true = imported something
 
   private financeService = inject(FinanceService);
+  private financeState = inject(FinanceStateService);
 
   mode = signal<ImportMode>('transactions');
   showFormat = signal(false);
@@ -262,7 +264,7 @@ export class ImportModalComponent implements OnInit {
       ? this.parsedTransactions().length
       : this.parsedAccounts().length
   );
-  accounts = signal<FinanceAccount[]>([]);
+  accounts = this.financeState.accounts;
   importing = signal(false);
   importResult = signal<ImportResult | null>(null);
   importError = signal('');
@@ -315,13 +317,8 @@ export class ImportModalComponent implements OnInit {
       : '[{\n  "name": "Conta Principal",\n  "currency": "BRL",\n  "type": "account"\n}]'
   );
 
-  async ngOnInit(): Promise<void> {
-    try {
-      const accs = await firstValueFrom(this.financeService.getAccounts(this.householdId));
-      this.accounts.set(accs);
-    } catch {
-      // non-critical
-    }
+  ngOnInit(): void {
+    // accounts come from FinanceStateService — already loaded by parent
   }
 
   setMode(mode: ImportMode): void {

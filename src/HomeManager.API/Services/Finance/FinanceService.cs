@@ -76,17 +76,17 @@ public class FinanceService : IFinanceService
 
     // ── Accounts ─────────────────────────────────────────────────────────────
 
-    public async Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId, string? month = null)
+    public async Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId, string? month = null, bool includeInactive = false)
     {
         try
         {
             if (!await HasAccessAsync(householdId, userId))
                 return ApiResponse<List<AccountResponse>>.ErrorResponse("Access denied");
 
-            var accounts = await m_context.FinanceAccounts
-                .Where(a => a.HouseholdId == householdId)
-                .OrderBy(a => a.Name)
-                .ToListAsync();
+            var query = m_context.FinanceAccounts.Where(a => a.HouseholdId == householdId);
+            if (!includeInactive) query = query.Where(a => a.IsActive);
+
+            var accounts = await query.OrderBy(a => a.Name).ToListAsync();
 
             // Compute currentInvoice for CC accounts when month is provided
             Dictionary<Guid, decimal> invoiceByAccount = [];
@@ -173,6 +173,7 @@ public class FinanceService : IFinanceService
             if (request.DueDay.HasValue) account.DueDay = request.DueDay;
             if (request.Limit.HasValue) account.Limit = request.Limit;
             if (request.Balance.HasValue) account.Balance = request.Balance;
+            if (request.IsActive.HasValue) account.IsActive = request.IsActive.Value;
 
             await m_context.SaveChangesAsync();
 

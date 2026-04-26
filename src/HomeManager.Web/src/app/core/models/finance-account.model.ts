@@ -10,6 +10,7 @@ export interface FinanceAccount {
   limit?: number;
   balance: number;
   currentInvoice?: number;
+  isActive: boolean;
   createdAt: string;
 }
 
@@ -42,4 +43,5 @@ export interface UpdateAccountRequest {
   dueDay?: number;
   limit?: number;
   balance?: number;
+  isActive?: boolean;
 }

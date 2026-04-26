@@ -7,7 +7,7 @@ namespace HomeManager.API.Services.Finance;
 public interface IFinanceService
 {
     // Accounts
-    Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId, string? month = null);
+    Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId, string? month = null, bool includeInactive = false);
     Task<ApiResponse<AccountResponse>> CreateAccountAsync(CreateAccountRequest request, Guid userId);
     Task<ApiResponse<AccountResponse>> UpdateAccountAsync(Guid id, UpdateAccountRequest request, Guid userId);
     Task<ApiResponse<bool>> DeleteAccountAsync(Guid id, Guid userId);

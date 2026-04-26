@@ -31,9 +31,10 @@ export class FinanceService {
 
   // ── Accounts ──────────────────────────────────────────────────────────────
 
-  getAccounts(householdId: string, month?: string): Observable<FinanceAccount[]> {
+  getAccounts(householdId: string, month?: string, includeInactive?: boolean): Observable<FinanceAccount[]> {
     let params = new HttpParams().set('householdId', householdId);
     if (month) params = params.set('month', month);
+    if (includeInactive) params = params.set('includeInactive', 'true');
     return this.http
       .get<ApiResponse<FinanceAccount[]>>(`${this.apiUrl}/accounts`, { params })
       .pipe(map(r => r.data));

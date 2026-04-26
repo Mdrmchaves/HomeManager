@@ -87,6 +87,7 @@ public class FinanceService : IFinanceService
                 CloseDay = request.CloseDay,
                 DueDay = request.DueDay,
                 Limit = request.Limit,
+                Balance = request.Balance,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -120,6 +121,7 @@ public class FinanceService : IFinanceService
             if (request.CloseDay.HasValue) account.CloseDay = request.CloseDay;
             if (request.DueDay.HasValue) account.DueDay = request.DueDay;
             if (request.Limit.HasValue) account.Limit = request.Limit;
+            if (request.Balance.HasValue) account.Balance = request.Balance;
 
             await m_context.SaveChangesAsync();
 
@@ -450,6 +452,7 @@ public class FinanceService : IFinanceService
                     CloseDay = item.Type == "cc" ? item.CloseDay : null,
                     DueDay = item.Type == "cc" ? item.DueDay : null,
                     Limit = item.Type == "cc" ? item.Limit : null,
+                    Balance = item.Balance,
                     CreatedAt = DateTime.UtcNow,
                 });
                 imported++;

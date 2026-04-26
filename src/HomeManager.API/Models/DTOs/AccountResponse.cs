@@ -13,6 +13,7 @@ public class AccountResponse
     public int? CloseDay { get; set; }
     public int? DueDay { get; set; }
     public decimal? Limit { get; set; }
+    public decimal? Balance { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public static AccountResponse FromEntity(FinanceAccount account) => new()
@@ -26,6 +27,7 @@ public class AccountResponse
         CloseDay = account.CloseDay,
         DueDay = account.DueDay,
         Limit = account.Limit,
+        Balance = account.Balance,
         CreatedAt = account.CreatedAt,
     };
 }

@@ -12,9 +12,12 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
   imports: [DecimalPipe, ReactiveFormsModule],
   template: `
     <div class="p-4 md:p-8 space-y-6 max-w-3xl mx-auto">
-      <!-- Add form -->
+
+      <!-- Add / Edit form -->
       <div class="bg-white rounded-xl border border-stone-200 p-5">
-        <h3 class="text-sm font-semibold text-stone-700 mb-4">Nova Conta</h3>
+        <h3 class="text-sm font-semibold text-stone-700 mb-4">
+          {{ editingAcc() ? 'Editar Conta' : 'Nova Conta' }}
+        </h3>
 
         <!-- Type toggle -->
         <div class="flex gap-2 mb-4">
@@ -42,7 +45,7 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
           <div class="grid grid-cols-2 gap-3">
-            <input formControlName="name" placeholder="Nome da conta" type="text"
+            <input formControlName="name" placeholder="Nome da conta *" type="text"
               class="col-span-2 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
             <select formControlName="currency"
               class="px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500">
@@ -58,15 +61,27 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
                 class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
               <input formControlName="dueDay" placeholder="Vencimento (dia)" type="number" min="1" max="31"
                 class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-              <input formControlName="limit" placeholder="Limite (opcional)" type="number" step="0.01" min="0"
+              <input formControlName="limit" placeholder="Limite" type="number" step="0.01" min="0"
                 class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
             </div>
           }
 
-          <button type="submit" [disabled]="saving() || form.invalid"
-            class="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
-            {{ saving() ? 'A guardar…' : 'Criar Conta' }}
-          </button>
+          <input formControlName="balance" placeholder="Saldo actual (opcional)" type="number" step="0.01"
+            class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+
+          <!-- Actions -->
+          <div class="flex gap-2">
+            @if (editingAcc()) {
+              <button type="button" (click)="cancelEdit()"
+                class="flex-1 py-2 rounded-lg text-sm font-medium border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors">
+                Cancelar
+              </button>
+            }
+            <button type="submit" [disabled]="saving() || form.invalid"
+              class="flex-1 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
+              {{ saving() ? 'A guardar…' : (editingAcc() ? 'Actualizar' : 'Criar Conta') }}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -80,7 +95,11 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
       } @else {
         <div class="space-y-2">
           @for (acc of accounts(); track acc.id) {
-            <div class="bg-white rounded-xl border border-stone-200 p-4 flex items-center gap-3">
+            <div
+              class="bg-white rounded-xl border p-4 flex items-center gap-3 transition-colors"
+              [class.border-emerald-300]="editingAcc()?.id === acc.id"
+              [class.bg-emerald-50]="editingAcc()?.id === acc.id"
+              [class.border-stone-200]="editingAcc()?.id !== acc.id">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                   <p class="text-sm font-medium text-stone-800">{{ acc.name }}</p>
@@ -100,10 +119,23 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
                   @if (acc.limit) {
                     · Limite {{ acc.limit | number:'1.2-2' }}
                   }
+                  @if (acc.balance != null) {
+                    · Saldo: {{ acc.balance | number:'1.2-2' }} {{ acc.currency }}
+                  }
                 </p>
               </div>
+              <!-- Edit -->
+              <button (click)="startEdit(acc)"
+                class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors"
+                title="Editar">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <!-- Delete -->
               <button (click)="deleteAccount(acc.id)"
-                class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Apagar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
@@ -129,6 +161,7 @@ export class AccountsTabComponent implements OnChanges {
   saving = signal(false);
   accounts = signal<FinanceAccount[]>([]);
   accountType = signal<'account' | 'cc'>('account');
+  editingAcc = signal<FinanceAccount | null>(null);
 
   readonly currencies = SUPPORTED_CURRENCIES;
 
@@ -138,10 +171,31 @@ export class AccountsTabComponent implements OnChanges {
     closeDay: [null as number | null],
     dueDay: [null as number | null],
     limit: [null as number | null],
+    balance: [null as number | null],
   });
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['householdId']) this.load();
+  }
+
+  startEdit(acc: FinanceAccount): void {
+    this.editingAcc.set(acc);
+    this.accountType.set(acc.type);
+    this.form.patchValue({
+      name: acc.name,
+      currency: acc.currency,
+      closeDay: acc.closeDay ?? null,
+      dueDay: acc.dueDay ?? null,
+      limit: acc.limit ?? null,
+      balance: acc.balance ?? null,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  cancelEdit(): void {
+    this.editingAcc.set(null);
+    this.accountType.set('account');
+    this.form.reset({ currency: 'BRL' });
   }
 
   async submit(): Promise<void> {
@@ -150,16 +204,32 @@ export class AccountsTabComponent implements OnChanges {
     this.saving.set(true);
     try {
       const v = this.form.getRawValue();
-      await firstValueFrom(this.financeService.createAccount({
-        householdId: this.householdId,
-        name: v.name!,
-        currency: v.currency!,
-        type: this.accountType(),
-        closeDay: this.accountType() === 'cc' ? v.closeDay ?? undefined : undefined,
-        dueDay: this.accountType() === 'cc' ? v.dueDay ?? undefined : undefined,
-        limit: this.accountType() === 'cc' ? v.limit ?? undefined : undefined,
-      }));
-      this.form.patchValue({ name: '', closeDay: null, dueDay: null, limit: null });
+      const isCC = this.accountType() === 'cc';
+
+      if (this.editingAcc()) {
+        await firstValueFrom(this.financeService.updateAccount(this.editingAcc()!.id, {
+          name: v.name ?? undefined,
+          currency: v.currency ?? undefined,
+          type: this.accountType(),
+          closeDay: isCC ? v.closeDay ?? undefined : undefined,
+          dueDay: isCC ? v.dueDay ?? undefined : undefined,
+          limit: isCC ? v.limit ?? undefined : undefined,
+          balance: v.balance ?? undefined,
+        }));
+        this.cancelEdit();
+      } else {
+        await firstValueFrom(this.financeService.createAccount({
+          householdId: this.householdId,
+          name: v.name!,
+          currency: v.currency!,
+          type: this.accountType(),
+          closeDay: isCC ? v.closeDay ?? undefined : undefined,
+          dueDay: isCC ? v.dueDay ?? undefined : undefined,
+          limit: isCC ? v.limit ?? undefined : undefined,
+          balance: v.balance ?? undefined,
+        }));
+        this.form.patchValue({ name: '', closeDay: null, dueDay: null, limit: null, balance: null });
+      }
       await this.load();
     } catch {
       // ignore
@@ -169,6 +239,7 @@ export class AccountsTabComponent implements OnChanges {
   }
 
   async deleteAccount(id: string): Promise<void> {
+    if (this.editingAcc()?.id === id) this.cancelEdit();
     if (!confirm('Apagar esta conta? As transações associadas ficarão sem conta.')) return;
     try {
       await firstValueFrom(this.financeService.deleteAccount(id));

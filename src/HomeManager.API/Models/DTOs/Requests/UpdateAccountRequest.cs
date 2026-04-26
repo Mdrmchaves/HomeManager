@@ -6,5 +6,6 @@ public record UpdateAccountRequest(
     string? Type,
     int? CloseDay,
     int? DueDay,
-    decimal? Limit
+    decimal? Limit,
+    decimal? Balance
 );

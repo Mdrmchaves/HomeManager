@@ -41,6 +41,9 @@ public class FinanceAccount
     [Column("limit")]
     public decimal? Limit { get; set; } // CC only: credit limit
 
+    [Column("balance")]
+    public decimal? Balance { get; set; } // current balance override
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

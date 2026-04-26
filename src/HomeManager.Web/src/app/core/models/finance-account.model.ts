@@ -8,6 +8,7 @@ export interface FinanceAccount {
   closeDay?: number;
   dueDay?: number;
   limit?: number;
+  balance?: number;
   createdAt: string;
 }
 
@@ -19,6 +20,7 @@ export interface CreateAccountRequest {
   closeDay?: number;
   dueDay?: number;
   limit?: number;
+  balance?: number;
 }
 
 export interface ImportAccountItem {
@@ -28,6 +30,7 @@ export interface ImportAccountItem {
   closeDay?: number;
   dueDay?: number;
   limit?: number;
+  balance?: number;
 }
 
 export interface UpdateAccountRequest {
@@ -37,4 +40,5 @@ export interface UpdateAccountRequest {
   closeDay?: number;
   dueDay?: number;
   limit?: number;
+  balance?: number;
 }

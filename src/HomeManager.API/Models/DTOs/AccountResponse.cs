@@ -14,9 +14,10 @@ public class AccountResponse
     public int? DueDay { get; set; }
     public decimal? Limit { get; set; }
     public decimal Balance { get; set; }
+    public decimal? CurrentInvoice { get; set; } // CC only: sum of expenses for the queried month
     public DateTime CreatedAt { get; set; }
 
-    public static AccountResponse FromEntity(FinanceAccount account) => new()
+    public static AccountResponse FromEntity(FinanceAccount account, decimal? currentInvoice = null) => new()
     {
         Id = account.Id,
         HouseholdId = account.HouseholdId,
@@ -28,6 +29,7 @@ public class AccountResponse
         DueDay = account.DueDay,
         Limit = account.Limit,
         Balance = account.Balance ?? 0m,
+        CurrentInvoice = currentInvoice,
         CreatedAt = account.CreatedAt,
     };
 }

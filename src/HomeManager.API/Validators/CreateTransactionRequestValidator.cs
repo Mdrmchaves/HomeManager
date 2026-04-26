@@ -5,7 +5,7 @@ namespace HomeManager.API.Validators;
 
 public class CreateTransactionRequestValidator : AbstractValidator<CreateTransactionRequest>
 {
-    private static readonly string[] ValidTypes = ["income", "expense"];
+    private static readonly string[] ValidTypes = ["income", "expense", "transfer"];
     private static readonly string[] ValidCategories = ["lf", "cf", "co", "mt", "pr", "es"];
 
     public CreateTransactionRequestValidator()
@@ -34,7 +34,17 @@ public class CreateTransactionRequestValidator : AbstractValidator<CreateTransac
             .NotEmpty()
             .WithMessage("Type is required")
             .Must(t => ValidTypes.Contains(t))
-            .WithMessage("Type must be 'income' or 'expense'");
+            .WithMessage("Type must be 'income', 'expense' or 'transfer'");
+
+        RuleFor(x => x.ToAccountId)
+            .NotEmpty()
+            .WithMessage("Destination account is required for transfers")
+            .When(x => x.Type == "transfer");
+
+        RuleFor(x => x.ToAmount)
+            .GreaterThan(0)
+            .WithMessage("ToAmount must be greater than 0")
+            .When(x => x.ToAmount.HasValue);
 
         RuleFor(x => x.Category)
             .Must(c => ValidCategories.Contains(c))

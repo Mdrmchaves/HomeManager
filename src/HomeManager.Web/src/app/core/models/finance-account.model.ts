@@ -9,6 +9,7 @@ export interface FinanceAccount {
   dueDay?: number;
   limit?: number;
   balance: number;
+  currentInvoice?: number;
   createdAt: string;
 }
 

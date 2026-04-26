@@ -8,5 +8,7 @@ public record UpdateTransactionRequest(
     DateOnly? Date,
     string? Type,
     string? Category,
-    string? RefMonth
+    string? RefMonth,
+    Guid? ToAccountId,
+    decimal? ToAmount
 );

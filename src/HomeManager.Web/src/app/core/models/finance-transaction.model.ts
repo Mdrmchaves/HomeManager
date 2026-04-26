@@ -1,4 +1,4 @@
-export type TransactionType = 'income' | 'expense';
+export type TransactionType = 'income' | 'expense' | 'transfer';
 export type TransactionCategory = 'lf' | 'cf' | 'co' | 'mt' | 'pr' | 'es';
 
 export interface FinanceTransaction {
@@ -7,6 +7,9 @@ export interface FinanceTransaction {
   createdBy?: string;
   accountId?: string;
   accountName?: string;
+  toAccountId?: string;
+  toAccountName?: string;
+  toAmount?: number;
   fromTemplateId?: string;
   description: string;
   amount: number;
@@ -28,6 +31,8 @@ export interface CreateTransactionRequest {
   type: TransactionType;
   category?: TransactionCategory;
   refMonth?: string;  // YYYY-MM; if absent, computed by backend
+  toAccountId?: string;
+  toAmount?: number;
 }
 
 export interface UpdateTransactionRequest {
@@ -39,6 +44,8 @@ export interface UpdateTransactionRequest {
   type?: TransactionType;
   category?: TransactionCategory;
   refMonth?: string;
+  toAccountId?: string;
+  toAmount?: number;
 }
 
 export interface FinanceTemplate {

@@ -9,6 +9,9 @@ public class TransactionResponse
     public Guid? CreatedBy { get; set; }
     public Guid? AccountId { get; set; }
     public string? AccountName { get; set; }
+    public Guid? ToAccountId { get; set; }
+    public string? ToAccountName { get; set; }
+    public decimal? ToAmount { get; set; }
     public Guid? FromTemplateId { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
@@ -26,6 +29,9 @@ public class TransactionResponse
         CreatedBy = tx.CreatedBy,
         AccountId = tx.AccountId,
         AccountName = tx.Account?.Name,
+        ToAccountId = tx.ToAccountId,
+        ToAccountName = tx.ToAccount?.Name,
+        ToAmount = tx.ToAmount,
         FromTemplateId = tx.FromTemplateId,
         Description = tx.Description,
         Amount = tx.Amount,

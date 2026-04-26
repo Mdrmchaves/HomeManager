@@ -111,16 +111,21 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
                     {{ acc.type === 'cc' ? 'Crédito' : 'Conta' }}
                   </span>
                 </div>
-                <p class="text-xs text-stone-400 mt-0.5">
-                  {{ acc.currency }}
-                  @if (acc.type === 'cc' && acc.closeDay) {
-                    · Fecho dia {{ acc.closeDay }}
-                  }
-                  @if (acc.limit) {
-                    · Limite {{ acc.limit | number:'1.2-2' }}
-                  }
-                  · Saldo: {{ acc.balance | number:'1.2-2' }} {{ acc.currency }}
-                </p>
+                @if (acc.type === 'cc') {
+                  <p class="text-xs text-stone-400 mt-0.5">
+                    {{ acc.currency }}
+                    @if (acc.closeDay) {
+                      · Fecho dia {{ acc.closeDay }}
+                    }
+                    · Fatura: {{ (acc.currentInvoice ?? 0) | number:'1.2-2' }} {{ acc.currency }}
+                    · Total no cartão: {{ acc.balance | number:'1.2-2' }} {{ acc.currency }}
+                  </p>
+                } @else {
+                  <p class="text-xs text-stone-400 mt-0.5">
+                    {{ acc.currency }}
+                    · Saldo: {{ acc.balance | number:'1.2-2' }} {{ acc.currency }}
+                  </p>
+                }
               </div>
               <!-- Recalculate -->
               <button (click)="recalculate(acc)"
@@ -181,7 +186,7 @@ export class AccountsTabComponent implements OnChanges {
   });
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['householdId']) this.load();
+    if (changes['householdId'] || changes['month']) this.load();
   }
 
   startEdit(acc: FinanceAccount): void {
@@ -268,7 +273,7 @@ export class AccountsTabComponent implements OnChanges {
     if (!this.householdId) return;
     this.loading.set(true);
     try {
-      const data = await firstValueFrom(this.financeService.getAccounts(this.householdId));
+      const data = await firstValueFrom(this.financeService.getAccounts(this.householdId, this.month));
       this.accounts.set(data);
     } catch {
       // ignore

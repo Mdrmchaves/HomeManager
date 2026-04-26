@@ -33,11 +33,12 @@ public class FinanceController : ControllerBase
 
     // ── Accounts ─────────────────────────────────────────────────────────────
 
-    // GET: api/finance/accounts?householdId={guid}
+    // GET: api/finance/accounts?householdId={guid}&month={YYYY-MM}
     [HttpGet("accounts")]
-    public async Task<ActionResult<ApiResponse<List<AccountResponse>>>> GetAccounts([FromQuery] Guid householdId)
+    public async Task<ActionResult<ApiResponse<List<AccountResponse>>>> GetAccounts(
+        [FromQuery] Guid householdId, [FromQuery] string? month = null)
     {
-        var result = await m_financeService.GetAccountsAsync(householdId, GetUserId());
+        var result = await m_financeService.GetAccountsAsync(householdId, GetUserId(), month);
         return result.Success ? Ok(result) : Forbid();
     }
 

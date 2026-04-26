@@ -45,9 +45,38 @@ public class FinanceService : IFinanceService
         return rate == 0 ? amount : amount * rate;
     }
 
+    /// <summary>
+    /// Adjusts account balances for a transaction.
+    /// sign = +1 to apply the effect, -1 to reverse it.
+    /// </summary>
+    private async Task AdjustAccountBalancesAsync(
+        string type, Guid? accountId, decimal amount,
+        Guid? toAccountId, decimal? toAmount, int sign)
+    {
+        if (type == "transfer")
+        {
+            if (accountId.HasValue)
+            {
+                var from = await m_context.FinanceAccounts.FindAsync(accountId.Value);
+                if (from is not null) from.Balance = (from.Balance ?? 0m) - sign * amount;
+            }
+            if (toAccountId.HasValue)
+            {
+                var to = await m_context.FinanceAccounts.FindAsync(toAccountId.Value);
+                if (to is not null) to.Balance = (to.Balance ?? 0m) + sign * (toAmount ?? amount);
+            }
+        }
+        else if (accountId.HasValue)
+        {
+            var account = await m_context.FinanceAccounts.FindAsync(accountId.Value);
+            if (account is not null)
+                account.Balance = (account.Balance ?? 0m) + sign * (type == "income" ? amount : -amount);
+        }
+    }
+
     // ── Accounts ─────────────────────────────────────────────────────────────
 
-    public async Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId)
+    public async Task<ApiResponse<List<AccountResponse>>> GetAccountsAsync(Guid householdId, Guid userId, string? month = null)
     {
         try
         {
@@ -59,8 +88,30 @@ public class FinanceService : IFinanceService
                 .OrderBy(a => a.Name)
                 .ToListAsync();
 
-            return ApiResponse<List<AccountResponse>>.SuccessResponse(
-                accounts.Select(AccountResponse.FromEntity).ToList());
+            // Compute currentInvoice for CC accounts when month is provided
+            Dictionary<Guid, decimal> invoiceByAccount = [];
+            if (!string.IsNullOrEmpty(month))
+            {
+                var ccIds = accounts.Where(a => a.Type == "cc").Select(a => a.Id).ToHashSet();
+                if (ccIds.Count > 0)
+                {
+                    invoiceByAccount = await m_context.FinanceTransactions
+                        .Where(tx => ccIds.Contains(tx.AccountId ?? Guid.Empty)
+                                  && tx.RefMonth == month
+                                  && tx.Type == "expense")
+                        .GroupBy(tx => tx.AccountId!.Value)
+                        .Select(g => new { AccountId = g.Key, Total = g.Sum(tx => tx.Amount) })
+                        .ToDictionaryAsync(x => x.AccountId, x => x.Total);
+                }
+            }
+
+            var responses = accounts.Select(a =>
+            {
+                invoiceByAccount.TryGetValue(a.Id, out var invoice);
+                return AccountResponse.FromEntity(a, a.Type == "cc" && !string.IsNullOrEmpty(month) ? invoice : null);
+            }).ToList();
+
+            return ApiResponse<List<AccountResponse>>.SuccessResponse(responses);
         }
         catch (Exception ex)
         {
@@ -178,7 +229,15 @@ public class FinanceService : IFinanceService
                 .Where(tx => tx.AccountId == accountId && tx.Type == "expense")
                 .SumAsync(tx => (decimal?)tx.Amount) ?? 0m;
 
-            account.Balance = income - expenses;
+            var transfersOut = await m_context.FinanceTransactions
+                .Where(tx => tx.AccountId == accountId && tx.Type == "transfer")
+                .SumAsync(tx => (decimal?)tx.Amount) ?? 0m;
+
+            var transfersIn = await m_context.FinanceTransactions
+                .Where(tx => tx.ToAccountId == accountId && tx.Type == "transfer")
+                .SumAsync(tx => (decimal?)(tx.ToAmount ?? tx.Amount)) ?? 0m;
+
+            account.Balance = income - expenses - transfersOut + transfersIn;
             await m_context.SaveChangesAsync();
 
             m_logger.LogInformation("Balance recalculated for account {AccountId}: {Balance}", accountId, account.Balance);
@@ -205,6 +264,7 @@ public class FinanceService : IFinanceService
 
             var query = m_context.FinanceTransactions
                 .Include(tx => tx.Account)
+                .Include(tx => tx.ToAccount)
                 .Where(tx => tx.HouseholdId == householdId)
                 .AsQueryable();
 
@@ -284,6 +344,14 @@ public class FinanceService : IFinanceService
                     return ApiResponse<TransactionResponse>.ErrorResponse("Account not found");
             }
 
+            FinanceAccount? toAccount = null;
+            if (request.Type == "transfer" && request.ToAccountId.HasValue)
+            {
+                toAccount = await m_context.FinanceAccounts.FindAsync(request.ToAccountId.Value);
+                if (toAccount is null || toAccount.HouseholdId != request.HouseholdId)
+                    return ApiResponse<TransactionResponse>.ErrorResponse("Destination account not found");
+            }
+
             var refMonth = !string.IsNullOrEmpty(request.RefMonth)
                 ? request.RefMonth
                 : CalcRefMonth(request.Date, account);
@@ -301,19 +369,17 @@ public class FinanceService : IFinanceService
                 RefMonth = refMonth,
                 Type = request.Type,
                 Category = request.Type == "income" ? null : request.Category,
+                ToAccountId = request.Type == "transfer" ? request.ToAccountId : null,
+                ToAmount = request.Type == "transfer" ? (request.ToAmount ?? request.Amount) : null,
                 CreatedAt = DateTime.UtcNow,
             };
 
             m_context.FinanceTransactions.Add(tx);
-
-            // Update account balance
-            if (account is not null)
-                account.Balance = (account.Balance ?? 0m) + (tx.Type == "income" ? tx.Amount : -tx.Amount);
-
+            await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, +1);
             await m_context.SaveChangesAsync();
 
-            // Reload with navigation
             tx.Account = account;
+            tx.ToAccount = toAccount;
             m_logger.LogInformation("Transaction {TransactionId} created for household {HouseholdId}", tx.Id, request.HouseholdId);
             return ApiResponse<TransactionResponse>.SuccessResponse(TransactionResponse.FromEntity(tx), "Transaction created");
         }
@@ -340,7 +406,9 @@ public class FinanceService : IFinanceService
 
             // Capture old values before mutation
             var oldAccountId = tx.AccountId;
+            var oldToAccountId = tx.ToAccountId;
             var oldAmount = tx.Amount;
+            var oldToAmount = tx.ToAmount;
             var oldType = tx.Type;
 
             if (request.AccountId.HasValue) tx.AccountId = request.AccountId;
@@ -348,8 +416,20 @@ public class FinanceService : IFinanceService
             if (request.Amount.HasValue) tx.Amount = request.Amount.Value;
             if (request.Currency is not null) tx.Currency = request.Currency;
             if (request.Date.HasValue) tx.Date = request.Date.Value;
-            if (request.Type is not null) tx.Type = request.Type;
+            if (request.Type is not null)
+            {
+                tx.Type = request.Type;
+                // Changing away from transfer: clear transfer fields
+                if (request.Type != "transfer") { tx.ToAccountId = null; tx.ToAmount = null; }
+            }
             if (request.Category is not null) tx.Category = tx.Type == "income" ? null : request.Category;
+            if (tx.Type == "transfer")
+            {
+                if (request.ToAccountId.HasValue) tx.ToAccountId = request.ToAccountId;
+                if (request.ToAmount.HasValue) tx.ToAmount = request.ToAmount;
+                // Default toAmount = amount if not set
+                tx.ToAmount ??= tx.Amount;
+            }
 
             // Recompute refMonth if date or account changed and no explicit override
             if ((request.Date.HasValue || request.AccountId.HasValue) && string.IsNullOrEmpty(request.RefMonth))
@@ -364,21 +444,9 @@ public class FinanceService : IFinanceService
                 tx.RefMonth = request.RefMonth;
             }
 
-            // Reverse old balance effect
-            if (oldAccountId.HasValue)
-            {
-                var oldAccount = await m_context.FinanceAccounts.FindAsync(oldAccountId.Value);
-                if (oldAccount is not null)
-                    oldAccount.Balance = (oldAccount.Balance ?? 0m) - (oldType == "income" ? oldAmount : -oldAmount);
-            }
-
-            // Apply new balance effect
-            if (tx.AccountId.HasValue)
-            {
-                var newAccount = await m_context.FinanceAccounts.FindAsync(tx.AccountId.Value);
-                if (newAccount is not null)
-                    newAccount.Balance = (newAccount.Balance ?? 0m) + (tx.Type == "income" ? tx.Amount : -tx.Amount);
-            }
+            // Reverse old balance effect, then apply new
+            await AdjustAccountBalancesAsync(oldType, oldAccountId, oldAmount, oldToAccountId, oldToAmount, -1);
+            await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, +1);
 
             await m_context.SaveChangesAsync();
 
@@ -403,14 +471,7 @@ public class FinanceService : IFinanceService
             if (!await HasAccessAsync(tx.HouseholdId, userId))
                 return ApiResponse<bool>.ErrorResponse("Access denied");
 
-            // Reverse balance effect before deleting
-            if (tx.AccountId.HasValue)
-            {
-                var account = await m_context.FinanceAccounts.FindAsync(tx.AccountId.Value);
-                if (account is not null)
-                    account.Balance = (account.Balance ?? 0m) - (tx.Type == "income" ? tx.Amount : -tx.Amount);
-            }
-
+            await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, -1);
             m_context.FinanceTransactions.Remove(tx);
             await m_context.SaveChangesAsync();
 
@@ -472,6 +533,15 @@ public class FinanceService : IFinanceService
             }
 
             m_context.FinanceTransactions.AddRange(transactions);
+
+            // Update account balances for imported transactions
+            foreach (var tx in transactions)
+            {
+                if (!tx.AccountId.HasValue) continue;
+                if (!accounts.TryGetValue(tx.AccountId.Value, out var acc)) continue;
+                acc.Balance = (acc.Balance ?? 0m) + (tx.Type == "income" ? tx.Amount : -tx.Amount);
+            }
+
             await m_context.SaveChangesAsync();
 
             m_logger.LogInformation("Imported {Count} transactions for household {HouseholdId}", imported, request.HouseholdId);

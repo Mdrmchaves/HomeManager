@@ -5,6 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
 import { FinanceTransaction, PagedResponse, TransactionCategory } from '../../../../core/models/finance-transaction.model';
 import { FinanceAccount } from '../../../../core/models/finance-account.model';
+import { FinanceRates } from '../../../../core/models/finance-budget.model';
 import {
   CATEGORY_LABELS,
   CATEGORY_COLORS,
@@ -33,7 +34,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
           <!-- Type toggle -->
           <div class="flex gap-2">
             <button type="button"
-              (click)="form.patchValue({ type: 'expense' })"
+              (click)="setType('expense')"
               class="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors"
               [class.bg-red-600]="form.value.type === 'expense'"
               [class.text-white]="form.value.type === 'expense'"
@@ -43,7 +44,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
               Saída
             </button>
             <button type="button"
-              (click)="form.patchValue({ type: 'income', category: null })"
+              (click)="setType('income')"
               class="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors"
               [class.bg-emerald-600]="form.value.type === 'income'"
               [class.text-white]="form.value.type === 'income'"
@@ -52,57 +53,135 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
               [class.text-stone-600]="form.value.type !== 'income'">
               Entrada
             </button>
+            <button type="button"
+              (click)="setType('transfer')"
+              class="flex-1 py-2 rounded-lg text-sm font-medium border transition-colors"
+              [class.bg-blue-600]="form.value.type === 'transfer'"
+              [class.text-white]="form.value.type === 'transfer'"
+              [class.border-blue-600]="form.value.type === 'transfer'"
+              [class.border-stone-200]="form.value.type !== 'transfer'"
+              [class.text-stone-600]="form.value.type !== 'transfer'">
+              Transferência
+            </button>
           </div>
 
-          <!-- Account selector -->
-          <select formControlName="accountId"
-            class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500 transition-colors"
-            [class.border-stone-200]="!(form.controls['accountId'].invalid && form.controls['accountId'].touched)"
-            [class.border-red-300]="form.controls['accountId'].invalid && form.controls['accountId'].touched">
-            <option [ngValue]="null" disabled>Selecionar conta *</option>
-            @for (acc of accounts(); track acc.id) {
-              <option [value]="acc.id">
-                {{ acc.name }} · {{ acc.currency }}{{ acc.type === 'cc' ? ' (CC)' : '' }}
-              </option>
+          @if (form.value.type === 'transfer') {
+            <!-- Transfer form -->
+            <div class="grid grid-cols-2 gap-3">
+              <!-- From account -->
+              <select formControlName="accountId" (change)="onTransferAccountChange()"
+                class="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:border-blue-500 transition-colors"
+                [class.border-stone-200]="!(form.controls['accountId'].invalid && form.controls['accountId'].touched)"
+                [class.border-red-300]="form.controls['accountId'].invalid && form.controls['accountId'].touched">
+                <option [ngValue]="null" disabled>Conta de origem *</option>
+                @for (acc of accounts(); track acc.id) {
+                  <option [value]="acc.id">{{ acc.name }} · {{ acc.currency }}</option>
+                }
+              </select>
+
+              <!-- To account -->
+              <select formControlName="toAccountId" (change)="onTransferAccountChange()"
+                class="px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:border-blue-500 transition-colors"
+                [class.border-stone-200]="!(form.controls['toAccountId'].invalid && form.controls['toAccountId'].touched)"
+                [class.border-red-300]="form.controls['toAccountId'].invalid && form.controls['toAccountId'].touched">
+                <option [ngValue]="null" disabled>Conta de destino *</option>
+                @for (acc of accounts(); track acc.id) {
+                  @if (acc.id !== form.value.accountId) {
+                    <option [value]="acc.id">{{ acc.name }} · {{ acc.currency }}</option>
+                  }
+                }
+              </select>
+
+              <input formControlName="description" placeholder="Descrição *" type="text"
+                class="col-span-2 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+
+              <!-- Amount sent -->
+              <div class="relative">
+                <input formControlName="amount" placeholder="Valor enviado *" type="number" step="0.01" min="0.01"
+                  (input)="onTransferAmountChange()"
+                  class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                @if (fromAccountCurrency()) {
+                  <span class="absolute right-3 top-2 text-xs text-stone-400">{{ fromAccountCurrency() }}</span>
+                }
+              </div>
+
+              <!-- Amount received -->
+              <div class="relative">
+                <input formControlName="toAmount" placeholder="Valor recebido *" type="number" step="0.01" min="0.01"
+                  class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                @if (toAccountCurrency()) {
+                  <span class="absolute right-3 top-2 text-xs text-stone-400">{{ toAccountCurrency() }}</span>
+                }
+              </div>
+
+              <input formControlName="date" type="date"
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+
+              <input formControlName="refMonth" type="month"
+                placeholder="Mês ref."
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+
+            @if (exchangeRateHint()) {
+              <p class="text-xs text-blue-500">{{ exchangeRateHint() }}</p>
             }
-          </select>
-          @if (accounts().length === 0) {
-            <p class="text-xs text-amber-600">Cria uma conta no separador "Contas" primeiro.</p>
-          }
 
-          <div class="grid grid-cols-2 gap-3">
-            <input formControlName="description" placeholder="Descrição *" type="text"
-              class="col-span-2 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+          } @else {
+            <!-- Income / Expense form -->
 
-            <input formControlName="amount" placeholder="Valor *" type="number" step="0.01" min="0.01"
-              class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-
-            <select formControlName="currency"
-              class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 bg-white">
-              @for (cur of currencies; track cur) {
-                <option [value]="cur">{{ cur }}</option>
+            <!-- Account selector -->
+            <select formControlName="accountId" (change)="onAccountChange()"
+              class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500 transition-colors"
+              [class.border-stone-200]="!(form.controls['accountId'].invalid && form.controls['accountId'].touched)"
+              [class.border-red-300]="form.controls['accountId'].invalid && form.controls['accountId'].touched">
+              <option [ngValue]="null" disabled>Selecionar conta *</option>
+              @for (acc of accounts(); track acc.id) {
+                <option [value]="acc.id">
+                  {{ acc.name }} · {{ acc.currency }}{{ acc.type === 'cc' ? ' (CC)' : '' }}
+                </option>
               }
             </select>
+            @if (accounts().length === 0) {
+              <p class="text-xs text-amber-600">Cria uma conta no separador "Contas" primeiro.</p>
+            }
 
-            <input formControlName="date" type="date"
-              class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+            <div class="grid grid-cols-2 gap-3">
+              <input formControlName="description" placeholder="Descrição *" type="text"
+                class="col-span-2 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
 
-            <input formControlName="refMonth" type="month"
-              placeholder="Mês ref."
-              class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-          </div>
+              <input formControlName="amount" placeholder="Valor *" type="number" step="0.01" min="0.01"
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
 
-          @if (form.value.type === 'expense') {
-            <div class="flex flex-wrap gap-2">
-              @for (cat of categories; track cat) {
-                <button type="button"
-                  (click)="form.patchValue({ category: cat })"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                  [class]="form.value.category === cat ? categoryColorActive(cat) : 'border-stone-200 text-stone-500'">
-                  {{ categoryLabel(cat) }}
-                </button>
-              }
+              <select formControlName="currency"
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500 bg-white">
+                @for (cur of currencies; track cur) {
+                  <option [value]="cur">{{ cur }}</option>
+                }
+              </select>
+
+              <input formControlName="date" type="date"
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+
+              <input formControlName="refMonth" type="month"
+                placeholder="Mês ref."
+                class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
             </div>
+
+            @if (form.value.type === 'expense') {
+              <div class="flex flex-wrap gap-2">
+                @for (cat of categories; track cat) {
+                  <button type="button"
+                    (click)="form.patchValue({ category: cat })"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+                    [class]="form.value.category === cat ? categoryColorActive(cat) : 'border-stone-200 text-stone-500'">
+                    {{ categoryLabel(cat) }}
+                  </button>
+                }
+              </div>
+              @if (form.controls['category'].invalid && form.controls['category'].touched) {
+                <p class="text-xs text-red-500">Seleciona uma categoria.</p>
+              }
+            }
           }
 
           <!-- Actions -->
@@ -144,21 +223,39 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
                 <p class="text-sm font-medium text-stone-800 truncate">{{ tx.description }}</p>
                 <div class="flex items-center gap-2 mt-0.5">
                   <span class="text-xs text-stone-400">{{ tx.date | date:'dd/MM' }}</span>
-                  @if (tx.accountName) {
-                    <span class="text-xs text-stone-400">· {{ tx.accountName }}</span>
-                  }
-                  @if (tx.category) {
-                    <span class="px-1.5 py-0.5 rounded text-xs font-medium border" [class]="categoryColor(tx.category)">
-                      {{ categoryLabel(tx.category) }}
+                  @if (tx.type === 'transfer') {
+                    <span class="text-xs text-stone-400">
+                      {{ tx.accountName ?? '?' }} → {{ tx.toAccountName ?? '?' }}
                     </span>
+                    <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                      Transferência
+                    </span>
+                  } @else {
+                    @if (tx.accountName) {
+                      <span class="text-xs text-stone-400">· {{ tx.accountName }}</span>
+                    }
+                    @if (tx.category) {
+                      <span class="px-1.5 py-0.5 rounded text-xs font-medium border" [class]="categoryColor(tx.category)">
+                        {{ categoryLabel(tx.category) }}
+                      </span>
+                    }
                   }
                 </div>
               </div>
-              <span class="text-sm font-semibold shrink-0"
-                [class.text-emerald-600]="tx.type === 'income'"
-                [class.text-red-600]="tx.type === 'expense'">
-                {{ tx.type === 'income' ? '+' : '-' }}{{ tx.amount | number:'1.2-2' }} {{ tx.currency }}
-              </span>
+              @if (tx.type === 'transfer') {
+                <span class="text-sm font-semibold text-blue-600 shrink-0">
+                  {{ tx.amount | number:'1.2-2' }} {{ tx.currency }}
+                  @if (tx.toAmount && tx.toAccountId) {
+                    <span class="text-stone-400 font-normal"> → </span>{{ tx.toAmount | number:'1.2-2' }}
+                  }
+                </span>
+              } @else {
+                <span class="text-sm font-semibold shrink-0"
+                  [class.text-emerald-600]="tx.type === 'income'"
+                  [class.text-red-600]="tx.type === 'expense'">
+                  {{ tx.type === 'income' ? '+' : '-' }}{{ tx.amount | number:'1.2-2' }} {{ tx.currency }}
+                </span>
+              }
               <!-- Edit -->
               <button (click)="startEdit(tx)"
                 class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors"
@@ -198,7 +295,9 @@ export class TransactionsTabComponent implements OnChanges {
   pagedData = signal<PagedResponse<FinanceTransaction> | null>(null);
   transactions = computed(() => this.pagedData()?.items ?? []);
   accounts = signal<FinanceAccount[]>([]);
+  rates = signal<FinanceRates | null>(null);
   editingTx = signal<FinanceTransaction | null>(null);
+  exchangeRateHint = signal('');
 
   readonly categories = CATEGORIES;
   readonly currencies = SUPPORTED_CURRENCIES;
@@ -209,19 +308,31 @@ export class TransactionsTabComponent implements OnChanges {
     return base.replace('bg-', 'bg-').replace('100', '500').replace('text-', 'text-white border-').replace('border-', '');
   };
 
+  fromAccountCurrency = computed(() => {
+    const id = this.form.value.accountId;
+    return id ? (this.accounts().find(a => a.id === id)?.currency ?? '') : '';
+  });
+
+  toAccountCurrency = computed(() => {
+    const id = this.form.value.toAccountId;
+    return id ? (this.accounts().find(a => a.id === id)?.currency ?? '') : '';
+  });
+
   today(): string {
     return new Date().toISOString().slice(0, 10);
   }
 
   form = this.fb.group({
     accountId: [null as string | null, Validators.required],
+    toAccountId: [null as string | null],
     description: ['', Validators.required],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
+    toAmount: [null as number | null],
     currency: ['BRL', Validators.required],
     date: [this.today(), Validators.required],
     refMonth: [''],
     type: ['expense', Validators.required],
-    category: [null as string | null],
+    category: [null as string | null, Validators.required], // required for expense (default type)
   });
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -234,30 +345,109 @@ export class TransactionsTabComponent implements OnChanges {
     }
   }
 
+  onAccountChange(): void {
+    const id = this.form.value.accountId;
+    const acc = this.accounts().find(a => a.id === id);
+    if (acc) this.form.patchValue({ currency: acc.currency });
+  }
+
+  setType(type: string): void {
+    if (type === 'transfer') {
+      this.form.patchValue({ type, category: null });
+    } else {
+      this.form.patchValue({ type, category: null, toAccountId: null, toAmount: null });
+      this.exchangeRateHint.set('');
+    }
+    this.updateCategoryValidator();
+  }
+
+  private updateCategoryValidator(): void {
+    const ctrl = this.form.controls['category'];
+    if (this.form.value.type === 'expense') {
+      ctrl.setValidators(Validators.required);
+    } else {
+      ctrl.clearValidators();
+    }
+    ctrl.updateValueAndValidity();
+  }
+
+  onTransferAccountChange(): void {
+    // Trigger computed re-evaluation by reading form value
+    const fromId = this.form.value.accountId;
+    const toId = this.form.value.toAccountId;
+    const amount = this.form.value.amount;
+
+    if (fromId && toId && amount) {
+      this.suggestToAmount(fromId, toId, amount);
+    } else if (fromId && toId) {
+      // Just update the hint currency labels
+      this.exchangeRateHint.set('');
+    }
+  }
+
+  onTransferAmountChange(): void {
+    const fromId = this.form.value.accountId;
+    const toId = this.form.value.toAccountId;
+    const amount = this.form.value.amount;
+    if (fromId && toId && amount) {
+      this.suggestToAmount(fromId, toId, amount);
+    }
+  }
+
+  private suggestToAmount(fromId: string, toId: string, amount: number): void {
+    const fromAcc = this.accounts().find(a => a.id === fromId);
+    const toAcc = this.accounts().find(a => a.id === toId);
+    if (!fromAcc || !toAcc) return;
+
+    if (fromAcc.currency === toAcc.currency) {
+      this.form.patchValue({ toAmount: amount });
+      this.exchangeRateHint.set('');
+      return;
+    }
+
+    const r = this.rates();
+    const fromRate = r?.rates[fromAcc.currency] ?? 1;
+    const toRate = r?.rates[toAcc.currency] ?? 1;
+    const converted = Math.round((amount * fromRate) / toRate * 100) / 100;
+    this.form.patchValue({ toAmount: converted });
+
+    const effectiveRate = Math.round((fromRate / toRate) * 10000) / 10000;
+    this.exchangeRateHint.set(
+      `Taxa de câmbio estimada: 1 ${fromAcc.currency} ≈ ${effectiveRate} ${toAcc.currency}`
+    );
+  }
+
   startEdit(tx: FinanceTransaction): void {
     this.editingTx.set(tx);
     this.form.patchValue({
       accountId: tx.accountId ?? null,
+      toAccountId: tx.toAccountId ?? null,
       description: tx.description,
       amount: tx.amount,
+      toAmount: tx.toAmount ?? null,
       currency: tx.currency,
       date: tx.date,
       refMonth: tx.refMonth,
       type: tx.type,
       category: tx.category ?? null,
     });
+    this.exchangeRateHint.set('');
+    this.updateCategoryValidator();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   cancelEdit(): void {
     this.editingTx.set(null);
+    this.exchangeRateHint.set('');
     this.form.reset({
       accountId: null,
+      toAccountId: null,
       type: 'expense',
       currency: 'BRL',
       date: this.today(),
       refMonth: this.month,
     });
+    this.updateCategoryValidator();
   }
 
   async submit(): Promise<void> {
@@ -266,17 +456,21 @@ export class TransactionsTabComponent implements OnChanges {
     this.saving.set(true);
     this.formError.set('');
     const v = this.form.getRawValue();
+    const isTransfer = v.type === 'transfer';
+
     try {
       if (this.editingTx()) {
         await firstValueFrom(this.financeService.updateTransaction(this.editingTx()!.id, {
           accountId: v.accountId ?? undefined,
           description: v.description!,
           amount: v.amount!,
-          currency: v.currency!,
+          currency: isTransfer ? (this.fromAccountCurrency() || v.currency!) : v.currency!,
           date: v.date!,
-          type: v.type as 'income' | 'expense',
+          type: v.type as 'income' | 'expense' | 'transfer',
           category: v.type === 'expense' && v.category ? v.category as TransactionCategory : undefined,
           refMonth: v.refMonth || undefined,
+          toAccountId: isTransfer ? (v.toAccountId ?? undefined) : undefined,
+          toAmount: isTransfer ? (v.toAmount ?? undefined) : undefined,
         }));
         this.cancelEdit();
       } else {
@@ -285,13 +479,15 @@ export class TransactionsTabComponent implements OnChanges {
           accountId: v.accountId ?? undefined,
           description: v.description!,
           amount: v.amount!,
-          currency: v.currency!,
+          currency: isTransfer ? (this.fromAccountCurrency() || v.currency!) : v.currency!,
           date: v.date!,
-          type: v.type as 'income' | 'expense',
+          type: v.type as 'income' | 'expense' | 'transfer',
           category: v.type === 'expense' && v.category ? v.category as TransactionCategory : undefined,
           refMonth: v.refMonth || undefined,
+          toAccountId: isTransfer ? (v.toAccountId ?? undefined) : undefined,
+          toAmount: isTransfer ? (v.toAmount ?? undefined) : undefined,
         }));
-        this.form.patchValue({ description: '', amount: null, category: null, date: this.today() });
+        this.form.patchValue({ description: '', amount: null, toAmount: null, category: null, date: this.today() });
       }
       await this.load();
     } catch {
@@ -315,10 +511,14 @@ export class TransactionsTabComponent implements OnChanges {
   private async loadAccounts(): Promise<void> {
     if (!this.householdId) return;
     try {
-      const data = await firstValueFrom(this.financeService.getAccounts(this.householdId));
-      this.accounts.set(data);
+      const [accounts, rates] = await Promise.all([
+        firstValueFrom(this.financeService.getAccounts(this.householdId)),
+        firstValueFrom(this.financeService.getRates(this.householdId)),
+      ]);
+      this.accounts.set(accounts);
+      this.rates.set(rates);
     } catch {
-      // ignore — accounts list is non-critical, form still works
+      // ignore — accounts/rates are non-critical
     }
   }
 

@@ -53,6 +53,13 @@ public class FinanceTransaction
     [MaxLength(10)]
     public string? Category { get; set; } // NULL for income; 'lf'|'cf'|'co'|'mt'|'pr'|'es' for expense
 
+    // Transfer fields (type == 'transfer' only)
+    [Column("to_account_id")]
+    public Guid? ToAccountId { get; set; }
+
+    [Column("to_amount")]
+    public decimal? ToAmount { get; set; } // amount received (may differ when currencies differ)
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -60,5 +67,6 @@ public class FinanceTransaction
     public Household Household { get; set; } = null!;
     public User? Creator { get; set; }
     public FinanceAccount? Account { get; set; }
+    public FinanceAccount? ToAccount { get; set; }
     public FinanceTemplate? FromTemplate { get; set; }
 }

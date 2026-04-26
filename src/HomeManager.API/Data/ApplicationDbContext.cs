@@ -162,6 +162,13 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder
             .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.ToAccount)
+            .WithMany()
+            .HasForeignKey(tx => tx.ToAccountId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<FinanceTransaction>()
             .HasOne(tx => tx.FromTemplate)
             .WithMany(t => t.Transactions)
             .HasForeignKey(tx => tx.FromTemplateId)

@@ -59,8 +59,30 @@ public class FinanceService : IFinanceService
                 .OrderBy(a => a.Name)
                 .ToListAsync();
 
-            return ApiResponse<List<AccountResponse>>.SuccessResponse(
-                accounts.Select(AccountResponse.FromEntity).ToList());
+            // Compute balance per account from all transactions
+            var accountIds = accounts.Select(a => a.Id).ToList();
+
+            var income = await m_context.FinanceTransactions
+                .Where(tx => tx.AccountId.HasValue && accountIds.Contains(tx.AccountId!.Value) && tx.Type == "income")
+                .GroupBy(tx => tx.AccountId!.Value)
+                .Select(g => new { AccountId = g.Key, Total = g.Sum(tx => tx.Amount) })
+                .ToDictionaryAsync(x => x.AccountId, x => x.Total);
+
+            var expenses = await m_context.FinanceTransactions
+                .Where(tx => tx.AccountId.HasValue && accountIds.Contains(tx.AccountId!.Value) && tx.Type == "expense")
+                .GroupBy(tx => tx.AccountId!.Value)
+                .Select(g => new { AccountId = g.Key, Total = g.Sum(tx => tx.Amount) })
+                .ToDictionaryAsync(x => x.AccountId, x => x.Total);
+
+            var responses = accounts.Select(acc =>
+            {
+                var inc = income.TryGetValue(acc.Id, out var i) ? i : 0m;
+                var exp = expenses.TryGetValue(acc.Id, out var e) ? e : 0m;
+                var computedBalance = (acc.Balance ?? 0m) + inc - exp;
+                return AccountResponse.FromEntity(acc, computedBalance);
+            }).ToList();
+
+            return ApiResponse<List<AccountResponse>>.SuccessResponse(responses);
         }
         catch (Exception ex)
         {
@@ -87,7 +109,7 @@ public class FinanceService : IFinanceService
                 CloseDay = request.CloseDay,
                 DueDay = request.DueDay,
                 Limit = request.Limit,
-                Balance = request.Balance,
+                Balance = request.InitialBalance,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -121,7 +143,7 @@ public class FinanceService : IFinanceService
             if (request.CloseDay.HasValue) account.CloseDay = request.CloseDay;
             if (request.DueDay.HasValue) account.DueDay = request.DueDay;
             if (request.Limit.HasValue) account.Limit = request.Limit;
-            if (request.Balance.HasValue) account.Balance = request.Balance;
+            if (request.InitialBalance.HasValue) account.Balance = request.InitialBalance;
 
             await m_context.SaveChangesAsync();
 
@@ -452,7 +474,7 @@ public class FinanceService : IFinanceService
                     CloseDay = item.Type == "cc" ? item.CloseDay : null,
                     DueDay = item.Type == "cc" ? item.DueDay : null,
                     Limit = item.Type == "cc" ? item.Limit : null,
-                    Balance = item.Balance,
+                    Balance = item.InitialBalance,
                     CreatedAt = DateTime.UtcNow,
                 });
                 imported++;

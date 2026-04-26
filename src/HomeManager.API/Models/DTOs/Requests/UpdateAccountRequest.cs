@@ -7,5 +7,5 @@ public record UpdateAccountRequest(
     int? CloseDay,
     int? DueDay,
     decimal? Limit,
-    decimal? Balance
+    decimal? InitialBalance
 );

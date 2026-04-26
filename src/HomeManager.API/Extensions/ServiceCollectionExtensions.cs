@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using HomeManager.API.Data;
 using HomeManager.API.Services;
+using HomeManager.API.Services.Finance;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols;
@@ -23,6 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IPantryService, PantryService>();
         services.AddScoped<IInventoryService, InventoryService>();
+        services.AddScoped<IFinanceService, FinanceService>();
 
         return services;
     }

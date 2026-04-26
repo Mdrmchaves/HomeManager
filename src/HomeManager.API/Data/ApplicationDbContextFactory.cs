@@ -31,10 +31,13 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
             );
 
         var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-        optionsBuilder.UseNpgsql(connectionString, npgsqlOptions =>
-        {
-            npgsqlOptions.CommandTimeout(60);
-        });
+        optionsBuilder.UseNpgsql(
+            connectionString,
+            npgsqlOptions =>
+            {
+                npgsqlOptions.CommandTimeout(60);
+            }
+        );
 
         return new ApplicationDbContext(optionsBuilder.Options);
     }

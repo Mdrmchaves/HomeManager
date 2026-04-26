@@ -1,3 +1,4 @@
+using HomeManager.API.Models.Finance;
 using HomeManager.API.Models.Inventory;
 using HomeManager.API.Models.Shared;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<Location> Locations { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<PantryItem> PantryItems { get; set; }
+
+    // Finance
+    public DbSet<FinanceAccount> FinanceAccounts { get; set; }
+    public DbSet<FinanceTemplate> FinanceTemplates { get; set; }
+    public DbSet<FinanceTransaction> FinanceTransactions { get; set; }
+    public DbSet<FinanceBudget> FinanceBudgets { get; set; }
+    public DbSet<FinanceRates> FinanceRates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -101,5 +109,96 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(p => p.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Finance ──────────────────────────────────────────────────────
+        // FinanceAccount
+        modelBuilder
+            .Entity<FinanceAccount>()
+            .HasOne(a => a.Household)
+            .WithMany()
+            .HasForeignKey(a => a.HouseholdId);
+
+        modelBuilder
+            .Entity<FinanceAccount>()
+            .HasOne(a => a.Owner)
+            .WithMany()
+            .HasForeignKey(a => a.OwnerId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // FinanceTemplate
+        modelBuilder
+            .Entity<FinanceTemplate>()
+            .HasOne(t => t.Household)
+            .WithMany()
+            .HasForeignKey(t => t.HouseholdId);
+
+        modelBuilder
+            .Entity<FinanceTemplate>()
+            .HasOne(t => t.Account)
+            .WithMany(a => a.Templates)
+            .HasForeignKey(t => t.AccountId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // FinanceTransaction
+        modelBuilder
+            .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.Household)
+            .WithMany()
+            .HasForeignKey(tx => tx.HouseholdId);
+
+        modelBuilder
+            .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.Creator)
+            .WithMany()
+            .HasForeignKey(tx => tx.CreatedBy)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.Account)
+            .WithMany(a => a.Transactions)
+            .HasForeignKey(tx => tx.AccountId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder
+            .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.FromTemplate)
+            .WithMany(t => t.Transactions)
+            .HasForeignKey(tx => tx.FromTemplateId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // FinanceBudget — unique per household
+        modelBuilder
+            .Entity<FinanceBudget>()
+            .HasOne(b => b.Household)
+            .WithMany()
+            .HasForeignKey(b => b.HouseholdId);
+
+        modelBuilder
+            .Entity<FinanceBudget>()
+            .HasIndex(b => b.HouseholdId)
+            .IsUnique();
+
+        modelBuilder
+            .Entity<FinanceBudget>()
+            .Property(b => b.Goals)
+            .HasColumnType("jsonb");
+
+        // FinanceRates — unique per household
+        modelBuilder
+            .Entity<FinanceRates>()
+            .HasOne(r => r.Household)
+            .WithMany()
+            .HasForeignKey(r => r.HouseholdId);
+
+        modelBuilder
+            .Entity<FinanceRates>()
+            .HasIndex(r => r.HouseholdId)
+            .IsUnique();
+
+        modelBuilder
+            .Entity<FinanceRates>()
+            .Property(r => r.Rates)
+            .HasColumnType("jsonb");
     }
 }

@@ -250,7 +250,10 @@ export class AccountsTabComponent implements OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['householdId'] || changes['month']) this.load();
+    if (changes['householdId'] || changes['month']) {
+      this.load();
+      this.financeState.refreshIfDirty(); // sync shared cache if transactions were mutated
+    }
   }
 
   openModal(acc: FinanceAccount | null): void {

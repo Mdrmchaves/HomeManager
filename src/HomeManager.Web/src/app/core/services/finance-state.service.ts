@@ -15,6 +15,7 @@ export class FinanceStateService {
   private financeService = inject(FinanceService);
 
   private cachedHouseholdId = '';
+  private accountsDirty = false;
 
   // Public signals — read by any component
   accounts = signal<FinanceAccount[]>([]);
@@ -39,9 +40,25 @@ export class FinanceStateService {
     }
   }
 
+  /** Mark accounts as stale — call after transaction mutations. */
+  markAccountsDirty(): void {
+    this.accountsDirty = true;
+  }
+
+  /**
+   * Reload accounts if dirty — call when entering a screen that shows account data.
+   * Clears the dirty flag after reloading.
+   */
+  async refreshIfDirty(): Promise<void> {
+    if (!this.accountsDirty || !this.cachedHouseholdId) return;
+    this.accountsDirty = false;
+    await this.loadAccounts(this.cachedHouseholdId);
+  }
+
   /** Force reload of accounts (call after create/update/delete account). */
   async refreshAccounts(): Promise<void> {
     if (!this.cachedHouseholdId) return;
+    this.accountsDirty = false;
     await this.loadAccounts(this.cachedHouseholdId);
   }
 
@@ -54,6 +71,7 @@ export class FinanceStateService {
   /** Invalidate all — use when switching household or logging out. */
   invalidate(): void {
     this.cachedHouseholdId = '';
+    this.accountsDirty = false;
     this.accounts.set([]);
     this.rates.set(null);
   }

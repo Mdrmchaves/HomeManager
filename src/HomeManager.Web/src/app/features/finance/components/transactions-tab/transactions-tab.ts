@@ -249,7 +249,7 @@ export class TransactionsTabComponent implements OnChanges {
     this.modalTx.set(null);
     if (saved) {
       this.load();
-      this.financeState.refreshAccounts(); // refresh balances in background
+      this.financeState.markAccountsDirty();
     }
   }
 
@@ -280,7 +280,7 @@ export class TransactionsTabComponent implements OnChanges {
     try {
       await firstValueFrom(this.financeService.deleteTransaction(id));
       this.load();
-      this.financeState.refreshAccounts(); // refresh balances in background
+      this.financeState.markAccountsDirty();
     } catch {
       // ignore
     }

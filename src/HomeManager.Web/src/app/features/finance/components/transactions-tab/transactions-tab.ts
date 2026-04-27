@@ -247,7 +247,10 @@ export class TransactionsTabComponent implements OnChanges {
   onModalClosed(saved: boolean): void {
     this.showModal.set(false);
     this.modalTx.set(null);
-    if (saved) this.load();
+    if (saved) {
+      this.load();
+      this.financeState.refreshAccounts(); // refresh balances in background
+    }
   }
 
   setFilterType(value: string): void {
@@ -276,7 +279,8 @@ export class TransactionsTabComponent implements OnChanges {
     if (!id) return;
     try {
       await firstValueFrom(this.financeService.deleteTransaction(id));
-      await this.load();
+      this.load();
+      this.financeState.refreshAccounts(); // refresh balances in background
     } catch {
       // ignore
     }

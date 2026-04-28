@@ -35,6 +35,9 @@ public class FinanceAccount
     [Column("close_day")]
     public int? CloseDay { get; set; } // CC only: day invoice closes (1-31)
 
+    [Column("close_month_is_next")]
+    public bool CloseMonthIsNext { get; set; } = false; // CC only: true when close_day is in the following month (e.g. closes on 2nd of next month)
+
     [Column("due_day")]
     public int? DueDay { get; set; } // CC only: day payment is due (1-31)
 

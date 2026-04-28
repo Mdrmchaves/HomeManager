@@ -129,7 +129,9 @@ interface ConfirmState {
                     }
 
                     <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
-                      @if (acc.closeDay) { <span>Fecho dia <strong class="text-stone-700">{{ acc.closeDay }}</strong></span> }
+                      @if (acc.closeDay) {
+                        <span>Fecho dia <strong class="text-stone-700">{{ acc.closeDay }}</strong>{{ acc.closeMonthIsNext ? ' (mês seg.)' : '' }}</span>
+                      }
                       @if (acc.dueDay) { <span>Venc. dia <strong class="text-stone-700">{{ acc.dueDay }}</strong></span> }
                       <span>Total: <strong class="text-stone-700">{{ acc.balance | number:'1.2-2' }} {{ acc.currency }}</strong></span>
                     </div>

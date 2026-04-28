@@ -31,12 +31,30 @@ public class FinanceService : IFinanceService
         if (account is null || account.Type != "cc" || account.CloseDay is null)
             return $"{date.Year:D4}-{date.Month:D2}";
 
-        if (date.Day > account.CloseDay)
+        if (account.CloseMonthIsNext)
         {
-            var next = date.AddMonths(1);
-            return $"{next.Year:D4}-{next.Month:D2}";
+            // Close day is in the following month (e.g. closes on 2nd of next month).
+            // Transactions on or before closeDay belong to the PREVIOUS month's invoice.
+            // e.g. closeDay=2: Apr 18 → Apr invoice; May 1 → Apr invoice; May 3 → May invoice.
+            if (date.Day <= account.CloseDay)
+            {
+                var prev = date.AddMonths(-1);
+                return $"{prev.Year:D4}-{prev.Month:D2}";
+            }
+            return $"{date.Year:D4}-{date.Month:D2}";
         }
-        return $"{date.Year:D4}-{date.Month:D2}";
+        else
+        {
+            // Close day is in the same month (standard model).
+            // Transactions AFTER closeDay belong to the NEXT month's invoice.
+            // e.g. closeDay=10: Apr 11 → May invoice; Apr 10 → Apr invoice.
+            if (date.Day > account.CloseDay)
+            {
+                var next = date.AddMonths(1);
+                return $"{next.Year:D4}-{next.Month:D2}";
+            }
+            return $"{date.Year:D4}-{date.Month:D2}";
+        }
     }
 
     private static decimal ToBase(decimal amount, string currency, Dictionary<string, decimal> rates)
@@ -136,6 +154,7 @@ public class FinanceService : IFinanceService
                 Currency = request.Currency,
                 Type = request.Type,
                 CloseDay = request.CloseDay,
+                CloseMonthIsNext = request.CloseMonthIsNext,
                 DueDay = request.DueDay,
                 Limit = request.Limit,
                 Balance = request.Balance,
@@ -170,6 +189,7 @@ public class FinanceService : IFinanceService
             if (request.Currency is not null) account.Currency = request.Currency;
             if (request.Type is not null) account.Type = request.Type;
             if (request.CloseDay.HasValue) account.CloseDay = request.CloseDay;
+            if (request.CloseMonthIsNext.HasValue) account.CloseMonthIsNext = request.CloseMonthIsNext.Value;
             if (request.DueDay.HasValue) account.DueDay = request.DueDay;
             if (request.Limit.HasValue) account.Limit = request.Limit;
             if (request.Balance.HasValue) account.Balance = request.Balance;
@@ -587,6 +607,7 @@ public class FinanceService : IFinanceService
                     Currency = item.Currency,
                     Type = item.Type,
                     CloseDay = item.Type == "cc" ? item.CloseDay : null,
+                    CloseMonthIsNext = item.Type == "cc" && item.CloseMonthIsNext,
                     DueDay = item.Type == "cc" ? item.DueDay : null,
                     Limit = item.Type == "cc" ? item.Limit : null,
                     Balance = item.Balance,

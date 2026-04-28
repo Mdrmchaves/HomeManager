@@ -11,6 +11,7 @@ public class AccountResponse
     public string Currency { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public int? CloseDay { get; set; }
+    public bool CloseMonthIsNext { get; set; }
     public int? DueDay { get; set; }
     public decimal? Limit { get; set; }
     public decimal Balance { get; set; }
@@ -27,6 +28,7 @@ public class AccountResponse
         Currency = account.Currency,
         Type = account.Type,
         CloseDay = account.CloseDay,
+        CloseMonthIsNext = account.CloseMonthIsNext,
         DueDay = account.DueDay,
         Limit = account.Limit,
         Balance = account.Balance ?? 0m,

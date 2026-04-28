@@ -23,6 +23,7 @@ interface ParsedAccount {
   currency: string;
   type: 'account' | 'cc';
   closeDay?: number;
+  closeMonthIsNext: boolean;
   dueDay?: number;
   limit?: number;
 }
@@ -452,6 +453,7 @@ export class ImportModalComponent implements OnInit {
           currency: item['currency'] as string,
           type: item['type'] as 'account' | 'cc',
           closeDay: isCC ? (item['closeDay'] as number | undefined) : undefined,
+          closeMonthIsNext: isCC ? !!(item['closeMonthIsNext'] as boolean | undefined) : false,
           dueDay: isCC ? (item['dueDay'] as number | undefined) : undefined,
           limit: isCC ? (item['limit'] as number | undefined) : undefined,
         });

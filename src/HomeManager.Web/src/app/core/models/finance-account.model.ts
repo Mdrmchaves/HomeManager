@@ -6,6 +6,7 @@ export interface FinanceAccount {
   currency: string;
   type: 'account' | 'cc';
   closeDay?: number;
+  closeMonthIsNext: boolean;
   dueDay?: number;
   limit?: number;
   balance: number;
@@ -20,6 +21,7 @@ export interface CreateAccountRequest {
   currency: string;
   type: 'account' | 'cc';
   closeDay?: number;
+  closeMonthIsNext: boolean;
   dueDay?: number;
   limit?: number;
   balance?: number;
@@ -30,6 +32,7 @@ export interface ImportAccountItem {
   currency: string;
   type: 'account' | 'cc';
   closeDay?: number;
+  closeMonthIsNext: boolean;
   dueDay?: number;
   limit?: number;
   balance?: number;
@@ -40,6 +43,7 @@ export interface UpdateAccountRequest {
   currency?: string;
   type?: 'account' | 'cc';
   closeDay?: number;
+  closeMonthIsNext?: boolean;
   dueDay?: number;
   limit?: number;
   balance?: number;

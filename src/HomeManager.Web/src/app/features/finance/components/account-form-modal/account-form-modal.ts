@@ -77,6 +77,33 @@ import { SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.mod
                 <input formControlName="limit" placeholder="Limite" type="number" step="0.01" min="0"
                   class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
               </div>
+
+              <!-- Close month toggle -->
+              <button type="button"
+                (click)="closeMonthIsNext.set(!closeMonthIsNext())"
+                class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-sm transition-colors"
+                [class.border-blue-300]="closeMonthIsNext()"
+                [class.bg-blue-50]="closeMonthIsNext()"
+                [class.border-stone-200]="!closeMonthIsNext()">
+                <span class="text-stone-700">Fecho no mês seguinte</span>
+                <div class="relative w-9 h-5 rounded-full transition-colors shrink-0"
+                  [class.bg-blue-500]="closeMonthIsNext()"
+                  [class.bg-stone-300]="!closeMonthIsNext()">
+                  <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                    [class.translate-x-4]="closeMonthIsNext()"
+                    [class.translate-x-0.5]="!closeMonthIsNext()">
+                  </div>
+                </div>
+              </button>
+              @if (closeMonthIsNext()) {
+                <p class="text-xs text-blue-600 -mt-1 px-1">
+                  Transações no dia 1–{{ form.value.closeDay ?? '?' }} pertencem à fatura do mês anterior.
+                </p>
+              } @else if (form.value.closeDay) {
+                <p class="text-xs text-stone-400 -mt-1 px-1">
+                  Transações após o dia {{ form.value.closeDay }} vão para a fatura do mês seguinte.
+                </p>
+              }
             }
 
             <input formControlName="balance" placeholder="Saldo actual" type="number" step="0.01"
@@ -114,6 +141,7 @@ export class AccountFormModalComponent implements OnInit {
   saving = signal(false);
   error = signal('');
   accountType = signal<'account' | 'cc'>('account');
+  closeMonthIsNext = signal(false);
 
   readonly currencies = SUPPORTED_CURRENCIES;
 
@@ -129,6 +157,7 @@ export class AccountFormModalComponent implements OnInit {
   ngOnInit(): void {
     if (this.account) {
       this.accountType.set(this.account.type);
+      this.closeMonthIsNext.set(this.account.closeMonthIsNext);
       this.form.patchValue({
         name: this.account.name,
         currency: this.account.currency,
@@ -159,6 +188,7 @@ export class AccountFormModalComponent implements OnInit {
           currency: v.currency ?? undefined,
           type: this.accountType(),
           closeDay: isCC ? (v.closeDay ?? undefined) : undefined,
+          closeMonthIsNext: isCC ? this.closeMonthIsNext() : false,
           dueDay: isCC ? (v.dueDay ?? undefined) : undefined,
           limit: isCC ? (v.limit ?? undefined) : undefined,
           balance: v.balance ?? undefined,
@@ -170,6 +200,7 @@ export class AccountFormModalComponent implements OnInit {
           currency: v.currency!,
           type: this.accountType(),
           closeDay: isCC ? (v.closeDay ?? undefined) : undefined,
+          closeMonthIsNext: isCC ? this.closeMonthIsNext() : false,
           dueDay: isCC ? (v.dueDay ?? undefined) : undefined,
           limit: isCC ? (v.limit ?? undefined) : undefined,
           balance: v.balance ?? undefined,

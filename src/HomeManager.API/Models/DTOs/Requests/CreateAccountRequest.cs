@@ -6,6 +6,7 @@ public record CreateAccountRequest(
     string Currency,
     string Type,
     int? CloseDay,
+    bool CloseMonthIsNext,
     int? DueDay,
     decimal? Limit,
     decimal? Balance

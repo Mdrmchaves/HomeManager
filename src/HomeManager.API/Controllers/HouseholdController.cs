@@ -70,4 +70,11 @@ public class HouseholdController : ControllerBase
     {
         return Ok(await m_householdService.JoinHouseholdAsync(inviteCode, GetUserId()));
     }
+
+    // PATCH: api/household/{id}/settings
+    [HttpPatch("{id}/settings")]
+    public async Task<ActionResult<ApiResponse<Household>>> UpdateSettings(Guid id, UpdateHouseholdSettingsRequest request)
+    {
+        return Ok(await m_householdService.UpdateSettingsAsync(id, request, GetUserId()));
+    }
 }

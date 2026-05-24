@@ -60,6 +60,9 @@ public class FinanceTransaction
     [Column("to_amount")]
     public decimal? ToAmount { get; set; } // amount received (may differ when currencies differ)
 
+    [Column("applied_rate")]
+    public decimal? AppliedRate { get; set; } // rate at transaction date: 1 unit of Currency = X units of household.DefaultCurrency
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

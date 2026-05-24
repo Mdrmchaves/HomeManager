@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using HomeManager.API.Data;
 using HomeManager.API.Models;
 using HomeManager.API.Models.DTOs;
@@ -11,13 +12,21 @@ public class FinanceService : IFinanceService
 {
     private readonly ILogger<FinanceService> m_logger;
     private readonly ApplicationDbContext m_context;
+    private readonly IHttpClientFactory m_httpClientFactory;
 
     private static readonly string[] ValidCategories = ["lf", "cf", "co", "mt", "pr", "es"];
+    private static readonly string[] KnownCurrencies = ["BRL", "EUR", "USD", "PYG"];
 
-    public FinanceService(ILogger<FinanceService> logger, ApplicationDbContext context)
+    private record FrankfurterRates(
+        [property: System.Text.Json.Serialization.JsonPropertyName("rates")]
+        Dictionary<string, decimal> Rates
+    );
+
+    public FinanceService(ILogger<FinanceService> logger, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
     {
         m_logger = logger;
         m_context = context;
+        m_httpClientFactory = httpClientFactory;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -61,6 +70,55 @@ public class FinanceService : IFinanceService
     {
         var rate = rates.TryGetValue(currency, out var r) ? r : 1m;
         return rate == 0 ? amount : amount * rate;
+    }
+
+    // Returns "1 unit of currency = X units of baseCurrency" on the given date.
+    // Returns null when the currency is unsupported or Frankfurter is unavailable.
+    private async Task<decimal?> FetchHistoricalRateAsync(DateOnly date, string currency, string baseCurrency)
+    {
+        if (currency == baseCurrency) return 1m;
+        try
+        {
+            var client = m_httpClientFactory.CreateClient("frankfurter");
+            var result = await client.GetFromJsonAsync<FrankfurterRates>(
+                $"/v1/{date:yyyy-MM-dd}?base={currency}&symbols={baseCurrency}");
+            return result?.Rates.TryGetValue(baseCurrency, out var rate) == true ? rate : null;
+        }
+        catch (Exception ex)
+        {
+            m_logger.LogWarning(ex, "Frankfurter historical rate unavailable for {Currency} on {Date}", currency, date);
+            return null;
+        }
+    }
+
+    // Returns a rates dict { currency → how many baseCurrency per 1 unit } using today's Frankfurter rates.
+    // Falls back to dbFallback for any currency Frankfurter can't provide (or on error).
+    private async Task<Dictionary<string, decimal>> FetchTodayRatesAsync(string baseCurrency, Dictionary<string, decimal> dbFallback)
+    {
+        try
+        {
+            var symbols = KnownCurrencies.Where(c => c != baseCurrency).ToArray();
+            var client = m_httpClientFactory.CreateClient("frankfurter");
+            // Frankfurter returns: 1 baseCurrency = X foreignCurrency → invert to get 1 foreign = Y baseCurrency
+            var result = await client.GetFromJsonAsync<FrankfurterRates>(
+                $"/v1/latest?base={baseCurrency}&symbols={string.Join(",", symbols)}");
+
+            if (result is null) return dbFallback;
+
+            var rates = new Dictionary<string, decimal> { [baseCurrency] = 1m };
+            foreach (var (sym, rate) in result.Rates)
+                if (rate != 0) rates[sym] = Math.Round(1m / rate, 6);
+
+            foreach (var (sym, rate) in dbFallback)
+                if (!rates.ContainsKey(sym)) rates[sym] = rate;
+
+            return rates;
+        }
+        catch (Exception ex)
+        {
+            m_logger.LogWarning(ex, "Frankfurter today's rates unavailable, using DB fallback");
+            return dbFallback;
+        }
     }
 
     /// <summary>
@@ -377,6 +435,9 @@ public class FinanceService : IFinanceService
                 ? request.RefMonth
                 : CalcRefMonth(request.Date, account);
 
+            var household = await m_context.Households.FindAsync(request.HouseholdId);
+            var defaultCurrency = household?.DefaultCurrency ?? "BRL";
+
             var tx = new FinanceTransaction
             {
                 Id = Guid.NewGuid(),
@@ -392,6 +453,7 @@ public class FinanceService : IFinanceService
                 Category = request.Type == "income" ? null : request.Category,
                 ToAccountId = request.Type == "transfer" ? request.ToAccountId : null,
                 ToAmount = request.Type == "transfer" ? (request.ToAmount ?? request.Amount) : null,
+                AppliedRate = await FetchHistoricalRateAsync(request.Date, request.Currency, defaultCurrency),
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -463,6 +525,14 @@ public class FinanceService : IFinanceService
             else if (!string.IsNullOrEmpty(request.RefMonth))
             {
                 tx.RefMonth = request.RefMonth;
+            }
+
+            // Re-fetch rate snapshot if date or currency changed
+            if (request.Date.HasValue || request.Currency is not null)
+            {
+                var household = await m_context.Households.FindAsync(tx.HouseholdId);
+                var defaultCurrency = household?.DefaultCurrency ?? "BRL";
+                tx.AppliedRate = await FetchHistoricalRateAsync(tx.Date, tx.Currency, defaultCurrency);
             }
 
             // Reverse old balance effect, then apply new
@@ -875,12 +945,23 @@ public class FinanceService : IFinanceService
             if (!await HasAccessAsync(householdId, userId))
                 return ApiResponse<RatesResponse>.ErrorResponse("Access denied");
 
-            var rates = await m_context.FinanceRates
-                .FirstOrDefaultAsync(r => r.HouseholdId == householdId);
+            var household = await m_context.Households.FindAsync(householdId);
+            var defaultCurrency = household?.DefaultCurrency ?? "BRL";
 
-            var response = rates is null
-                ? RatesResponse.Default(householdId)
-                : RatesResponse.FromEntity(rates);
+            var ratesEntity = await m_context.FinanceRates
+                .FirstOrDefaultAsync(r => r.HouseholdId == householdId);
+            var dbRates = ratesEntity?.Rates ?? new Dictionary<string, decimal>
+                { ["BRL"] = 1, ["EUR"] = 6.0m, ["USD"] = 5.5m, ["PYG"] = 0.0007m };
+
+            var liveRates = await FetchTodayRatesAsync(defaultCurrency, dbRates);
+
+            var response = new RatesResponse
+            {
+                Id = ratesEntity?.Id ?? Guid.Empty,
+                HouseholdId = householdId,
+                Rates = liveRates,
+                UpdatedAt = DateTime.UtcNow,
+            };
 
             return ApiResponse<RatesResponse>.SuccessResponse(response);
         }
@@ -942,11 +1023,16 @@ public class FinanceService : IFinanceService
             if (!System.Text.RegularExpressions.Regex.IsMatch(month, @"^\d{4}-\d{2}$"))
                 return ApiResponse<DashboardResponse>.ErrorResponse("Month must be in YYYY-MM format");
 
-            // Load rates (for currency conversion)
+            // Load household default currency
+            var household = await m_context.Households.FindAsync(householdId);
+            var defaultCurrency = household?.DefaultCurrency ?? "BRL";
+
+            // Load DB rates as fallback, then overlay with Frankfurter live rates
             var ratesEntity = await m_context.FinanceRates
                 .FirstOrDefaultAsync(r => r.HouseholdId == householdId);
-            var rates = ratesEntity?.Rates ?? new Dictionary<string, decimal>
+            var dbRates = ratesEntity?.Rates ?? new Dictionary<string, decimal>
                 { ["BRL"] = 1, ["EUR"] = 6.0m, ["USD"] = 5.5m, ["PYG"] = 0.0007m };
+            var rates = await FetchTodayRatesAsync(defaultCurrency, dbRates);
 
             // Load budget
             var budget = await m_context.FinanceBudgets
@@ -1050,7 +1136,7 @@ public class FinanceService : IFinanceService
             var dashboard = new DashboardResponse
             {
                 Month = month,
-                BaseCurrency = "BRL",
+                BaseCurrency = defaultCurrency,
                 TotalIncome = Math.Round(totalIncome, 2),
                 TotalExpenses = Math.Round(totalExpenses, 2),
                 Balance = Math.Round(totalIncome - totalExpenses, 2),

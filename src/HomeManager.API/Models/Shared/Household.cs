@@ -23,6 +23,11 @@ public class Household
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("default_currency")]
+    [Required]
+    [MaxLength(10)]
+    public string DefaultCurrency { get; set; } = "BRL";
+
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

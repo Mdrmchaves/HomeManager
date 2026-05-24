@@ -8,7 +8,6 @@ import { TransactionsTabComponent } from './components/transactions-tab/transact
 import { RecurringTabComponent } from './components/recurring-tab/recurring-tab';
 import { AccountsTabComponent } from './components/accounts-tab/accounts-tab';
 import { BudgetTabComponent } from './components/budget-tab/budget-tab';
-import { ExchangeTabComponent } from './components/exchange-tab/exchange-tab';
 import { ImportModalComponent } from './components/import-modal/import-modal';
 
 @Component({
@@ -21,7 +20,6 @@ import { ImportModalComponent } from './components/import-modal/import-modal';
     RecurringTabComponent,
     AccountsTabComponent,
     BudgetTabComponent,
-    ExchangeTabComponent,
     ImportModalComponent,
   ],
   templateUrl: './finance.html',
@@ -34,7 +32,7 @@ export class FinanceComponent {
   householdId = computed(() => this.selectedHousehold()?.id ?? '');
 
   activeTab = signal(0);
-  readonly tabs = ['Painel', 'Transações', 'Recorrentes', 'Contas', 'Orçamento', 'Câmbio'];
+  readonly tabs = ['Painel', 'Transações', 'Recorrentes', 'Contas', 'Orçamento'];
 
   showImport = signal(false);
 

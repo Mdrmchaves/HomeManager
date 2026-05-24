@@ -20,6 +20,7 @@ public class TransactionResponse
     public string RefMonth { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public string? Category { get; set; }
+    public decimal? AppliedRate { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public static TransactionResponse FromEntity(FinanceTransaction tx) => new()
@@ -40,6 +41,7 @@ public class TransactionResponse
         RefMonth = tx.RefMonth,
         Type = tx.Type,
         Category = tx.Category,
+        AppliedRate = tx.AppliedRate,
         CreatedAt = tx.CreatedAt,
     };
 }

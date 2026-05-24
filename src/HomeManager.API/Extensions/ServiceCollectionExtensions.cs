@@ -26,6 +26,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IFinanceService, FinanceService>();
 
+        services.AddHttpClient("frankfurter", c =>
+        {
+            c.BaseAddress = new Uri("https://api.frankfurter.dev");
+            c.Timeout = TimeSpan.FromSeconds(5);
+        });
+
         return services;
     }
 

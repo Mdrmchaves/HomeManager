@@ -86,6 +86,7 @@ public class HouseholdService : IHouseholdService
             {
                 Id = Guid.NewGuid(),
                 Name = request.Name,
+                DefaultCurrency = string.IsNullOrWhiteSpace(request.DefaultCurrency) ? "BRL" : request.DefaultCurrency.ToUpperInvariant(),
                 InviteCode = inviteCode,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -174,6 +175,35 @@ public class HouseholdService : IHouseholdService
         {
             _logger.LogError(ex, "Error joining household.");
             return ApiResponse<Household>.ErrorResponse($"Error joining household: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<Household>> UpdateSettingsAsync(Guid id, UpdateHouseholdSettingsRequest request, Guid userId)
+    {
+        _logger.LogInformation("Updating settings for household {HouseholdId}", id);
+        try
+        {
+            var isMember = await _context.HouseholdUsers.AnyAsync(hu => hu.HouseholdId == id && hu.UserId == userId);
+            if (!isMember)
+                return ApiResponse<Household>.ErrorResponse("Access denied");
+
+            var household = await _context.Households.FindAsync(id);
+            if (household is null)
+                return ApiResponse<Household>.ErrorResponse("Household not found");
+
+            if (!string.IsNullOrWhiteSpace(request.DefaultCurrency))
+                household.DefaultCurrency = request.DefaultCurrency.ToUpperInvariant();
+
+            household.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Household {HouseholdId} settings updated", id);
+            return ApiResponse<Household>.SuccessResponse(household, "Settings updated");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating settings for household {HouseholdId}", id);
+            return ApiResponse<Household>.ErrorResponse($"Error: {ex.Message}");
         }
     }
 

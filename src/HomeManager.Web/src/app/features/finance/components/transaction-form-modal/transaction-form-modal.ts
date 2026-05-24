@@ -1,6 +1,7 @@
 import {
   Component, Input, Output, EventEmitter, OnInit, signal, computed, inject,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
@@ -240,8 +241,12 @@ export class TransactionFormModalComponent implements OnInit {
     category: [null as string | null, Validators.required],
   });
 
+  // toSignal wraps form control Observable into a Signal so computed() tracks it reactively.
+  // Must be declared after 'form' to avoid "used before initialization" error.
+  private accountIdSignal = toSignal(this.form.controls['accountId'].valueChanges, { initialValue: null as string | null });
+
   fromAccountCurrency = computed(() => {
-    const id = this.form.value.accountId;
+    const id = this.accountIdSignal();
     return id ? (this.accounts().find(a => a.id === id)?.currency ?? '') : '';
   });
 

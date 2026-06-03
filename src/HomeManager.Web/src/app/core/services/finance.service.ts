@@ -9,12 +9,14 @@ import {
   FinanceTransaction,
   CreateTransactionRequest,
   UpdateTransactionRequest,
-  FinanceTemplate,
-  CreateTemplateRequest,
   PagedResponse,
   ImportResult,
-  ApplyResult,
 } from '../models/finance-transaction.model';
+import {
+  FinancePlanningItem,
+  CreatePlanningItemRequest,
+  UpdatePlanningItemRequest,
+} from '../models/finance-planning.model';
 import {
   FinanceBudget,
   UpsertBudgetRequest,
@@ -132,30 +134,30 @@ export class FinanceService {
       .pipe(map(r => r.data));
   }
 
-  // ── Templates ─────────────────────────────────────────────────────────────
+  // ── Planning ──────────────────────────────────────────────────────────────
 
-  getTemplates(householdId: string): Observable<FinanceTemplate[]> {
+  getPlanningItems(householdId: string): Observable<FinancePlanningItem[]> {
     const params = new HttpParams().set('householdId', householdId);
     return this.http
-      .get<ApiResponse<FinanceTemplate[]>>(`${this.apiUrl}/templates`, { params })
+      .get<ApiResponse<FinancePlanningItem[]>>(`${environment.apiUrl}/planning`, { params })
       .pipe(map(r => r.data));
   }
 
-  createTemplate(request: CreateTemplateRequest): Observable<FinanceTemplate> {
+  createPlanningItem(request: CreatePlanningItemRequest): Observable<FinancePlanningItem> {
     return this.http
-      .post<ApiResponse<FinanceTemplate>>(`${this.apiUrl}/templates`, request)
+      .post<ApiResponse<FinancePlanningItem>>(`${environment.apiUrl}/planning`, request)
       .pipe(map(r => r.data));
   }
 
-  deleteTemplate(id: string): Observable<boolean> {
+  updatePlanningItem(id: string, request: UpdatePlanningItemRequest): Observable<FinancePlanningItem> {
     return this.http
-      .delete<ApiResponse<boolean>>(`${this.apiUrl}/templates/${id}`)
+      .put<ApiResponse<FinancePlanningItem>>(`${environment.apiUrl}/planning/${id}`, request)
       .pipe(map(r => r.data));
   }
 
-  applyTemplates(householdId: string, month: string): Observable<ApplyResult> {
+  deletePlanningItem(id: string): Observable<boolean> {
     return this.http
-      .post<ApiResponse<ApplyResult>>(`${this.apiUrl}/templates/apply`, { householdId, month })
+      .delete<ApiResponse<boolean>>(`${environment.apiUrl}/planning/${id}`)
       .pipe(map(r => r.data));
   }
 

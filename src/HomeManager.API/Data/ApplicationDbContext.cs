@@ -24,10 +24,10 @@ public class ApplicationDbContext : DbContext
 
     // Finance
     public DbSet<FinanceAccount> FinanceAccounts { get; set; }
-    public DbSet<FinanceTemplate> FinanceTemplates { get; set; }
     public DbSet<FinanceTransaction> FinanceTransactions { get; set; }
     public DbSet<FinanceBudget> FinanceBudgets { get; set; }
     public DbSet<FinanceRates> FinanceRates { get; set; }
+    public DbSet<FinancePlanningItem> FinancePlanningItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,19 +125,12 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(a => a.OwnerId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // FinanceTemplate
+        // FinancePlanningItem
         modelBuilder
-            .Entity<FinanceTemplate>()
-            .HasOne(t => t.Household)
+            .Entity<FinancePlanningItem>()
+            .HasOne(p => p.Household)
             .WithMany()
-            .HasForeignKey(t => t.HouseholdId);
-
-        modelBuilder
-            .Entity<FinanceTemplate>()
-            .HasOne(t => t.Account)
-            .WithMany(a => a.Templates)
-            .HasForeignKey(t => t.AccountId)
-            .OnDelete(DeleteBehavior.SetNull);
+            .HasForeignKey(p => p.HouseholdId);
 
         // FinanceTransaction
         modelBuilder
@@ -165,13 +158,6 @@ public class ApplicationDbContext : DbContext
             .HasOne(tx => tx.ToAccount)
             .WithMany()
             .HasForeignKey(tx => tx.ToAccountId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        modelBuilder
-            .Entity<FinanceTransaction>()
-            .HasOne(tx => tx.FromTemplate)
-            .WithMany(t => t.Transactions)
-            .HasForeignKey(tx => tx.FromTemplateId)
             .OnDelete(DeleteBehavior.SetNull);
 
         // FinanceBudget — unique per household

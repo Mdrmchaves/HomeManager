@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPantryService, PantryService>();
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IFinanceService, FinanceService>();
+        services.AddScoped<IPlanningService, PlanningService>();
 
         services.AddHttpClient("frankfurter", c =>
         {

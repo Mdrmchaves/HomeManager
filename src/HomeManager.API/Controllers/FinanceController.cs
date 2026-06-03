@@ -155,43 +155,6 @@ public class FinanceController : ControllerBase
         return Ok(result);
     }
 
-    // ── Templates ─────────────────────────────────────────────────────────────
-
-    // GET: api/finance/templates?householdId={guid}
-    [HttpGet("templates")]
-    public async Task<ActionResult<ApiResponse<List<TemplateResponse>>>> GetTemplates([FromQuery] Guid householdId)
-    {
-        var result = await m_financeService.GetTemplatesAsync(householdId, GetUserId());
-        return result.Success ? Ok(result) : Forbid();
-    }
-
-    // POST: api/finance/templates
-    [HttpPost("templates")]
-    public async Task<ActionResult<ApiResponse<TemplateResponse>>> CreateTemplate(CreateTemplateRequest request)
-    {
-        var result = await m_financeService.CreateTemplateAsync(request, GetUserId());
-        if (!result.Success) return BadRequest(result);
-        return CreatedAtAction(nameof(GetTemplates), new { householdId = result.Data!.HouseholdId }, result);
-    }
-
-    // DELETE: api/finance/templates/{id}
-    [HttpDelete("templates/{id}")]
-    public async Task<ActionResult<ApiResponse<bool>>> DeleteTemplate(Guid id)
-    {
-        var result = await m_financeService.DeleteTemplateAsync(id, GetUserId());
-        if (!result.Success) return result.Message == "Access denied" ? Forbid() : NotFound(result);
-        return Ok(result);
-    }
-
-    // POST: api/finance/templates/apply
-    [HttpPost("templates/apply")]
-    public async Task<ActionResult<ApiResponse<ApplyResult>>> ApplyTemplates(ApplyTemplatesRequest request)
-    {
-        var result = await m_financeService.ApplyTemplatesAsync(request, GetUserId());
-        if (!result.Success) return BadRequest(result);
-        return Ok(result);
-    }
-
     // ── Budget ────────────────────────────────────────────────────────────────
 
     // GET: api/finance/budget?householdId={guid}

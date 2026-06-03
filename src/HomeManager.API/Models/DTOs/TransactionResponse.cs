@@ -12,7 +12,6 @@ public class TransactionResponse
     public Guid? ToAccountId { get; set; }
     public string? ToAccountName { get; set; }
     public decimal? ToAmount { get; set; }
-    public Guid? FromTemplateId { get; set; }
     public string Description { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
@@ -33,7 +32,6 @@ public class TransactionResponse
         ToAccountId = tx.ToAccountId,
         ToAccountName = tx.ToAccount?.Name,
         ToAmount = tx.ToAmount,
-        FromTemplateId = tx.FromTemplateId,
         Description = tx.Description,
         Amount = tx.Amount,
         Currency = tx.Currency,

@@ -11,11 +11,6 @@ namespace HomeManager.API.Data.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "installment_group_id",
-                schema: "finance",
-                table: "transactions");
-
             migrationBuilder.AddColumn<decimal>(
                 name: "applied_rate",
                 schema: "finance",
@@ -46,12 +41,6 @@ namespace HomeManager.API.Data.Migrations
                 schema: "shared",
                 table: "households");
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "installment_group_id",
-                schema: "finance",
-                table: "transactions",
-                type: "uuid",
-                nullable: true);
         }
     }
 }

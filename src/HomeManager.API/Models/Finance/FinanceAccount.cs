@@ -57,5 +57,4 @@ public class FinanceAccount
     public Household Household { get; set; } = null!;
     public User? Owner { get; set; }
     public ICollection<FinanceTransaction> Transactions { get; set; } = new List<FinanceTransaction>();
-    public ICollection<FinanceTemplate> Templates { get; set; } = new List<FinanceTemplate>();
 }

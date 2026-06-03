@@ -4,8 +4,8 @@ using HomeManager.API.Models.Shared;
 
 namespace HomeManager.API.Models.Finance;
 
-[Table("templates", Schema = "finance")]
-public class FinanceTemplate
+[Table("planning_items", Schema = "finance")]
+public class FinancePlanningItem
 {
     [Key]
     [Column("id")]
@@ -13,9 +13,6 @@ public class FinanceTemplate
 
     [Column("household_id")]
     public Guid HouseholdId { get; set; }
-
-    [Column("account_id")]
-    public Guid? AccountId { get; set; }
 
     [Column("description")]
     [Required]
@@ -32,16 +29,28 @@ public class FinanceTemplate
 
     [Column("category")]
     [MaxLength(10)]
-    public string? Category { get; set; } // NULL = income template; 'lf'|'cf'|'co'|'mt'|'pr'|'es' = expense
+    public string? Category { get; set; } // NULL = income/general; 'lf'|'cf'|'co'|'mt'|'pr'|'es' = expense
+
+    [Column("type")]
+    [Required]
+    [MaxLength(20)]
+    public string Type { get; set; } = "fixed"; // 'fixed' | 'installment'
 
     [Column("day_of_month")]
-    public int DayOfMonth { get; set; } // 1-31
+    public int? DayOfMonth { get; set; } // 1-31, nullable
+
+    [Column("total_installments")]
+    public int? TotalInstallments { get; set; } // installment only
+
+    [Column("installments_paid")]
+    public int InstallmentsPaid { get; set; } = 0;
+
+    [Column("is_active")]
+    public bool IsActive { get; set; } = true;
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
     public Household Household { get; set; } = null!;
-    public FinanceAccount? Account { get; set; }
-    public ICollection<FinanceTransaction> Transactions { get; set; } = new List<FinanceTransaction>();
 }

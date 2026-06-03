@@ -10,7 +10,6 @@ export interface FinanceTransaction {
   toAccountId?: string;
   toAccountName?: string;
   toAmount?: number;
-  fromTemplateId?: string;
   description: string;
   amount: number;
   currency: string;
@@ -48,29 +47,6 @@ export interface UpdateTransactionRequest {
   toAmount?: number;
 }
 
-export interface FinanceTemplate {
-  id: string;
-  householdId: string;
-  accountId?: string;
-  accountName?: string;
-  description: string;
-  amount: number;
-  currency: string;
-  category?: TransactionCategory;
-  dayOfMonth: number;
-  createdAt: string;
-}
-
-export interface CreateTemplateRequest {
-  householdId: string;
-  accountId?: string;
-  description: string;
-  amount: number;
-  currency: string;
-  category?: TransactionCategory;
-  dayOfMonth: number;
-}
-
 export interface PagedResponse<T> {
   items: T[];
   total: number;
@@ -81,10 +57,5 @@ export interface PagedResponse<T> {
 
 export interface ImportResult {
   imported: number;
-  skipped: number;
-}
-
-export interface ApplyResult {
-  generated: number;
   skipped: number;
 }

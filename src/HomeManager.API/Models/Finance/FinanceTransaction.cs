@@ -20,9 +20,6 @@ public class FinanceTransaction
     [Column("account_id")]
     public Guid? AccountId { get; set; }
 
-    [Column("from_template_id")]
-    public Guid? FromTemplateId { get; set; }
-
     [Column("description")]
     [Required]
     [MaxLength(500)]
@@ -71,5 +68,4 @@ public class FinanceTransaction
     public User? Creator { get; set; }
     public FinanceAccount? Account { get; set; }
     public FinanceAccount? ToAccount { get; set; }
-    public FinanceTemplate? FromTemplate { get; set; }
 }

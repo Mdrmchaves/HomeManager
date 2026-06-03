@@ -5,7 +5,7 @@ import { FinanceStateService } from '../../core/services/finance-state.service';
 import { PillTabsComponent } from '../../shared/components/pill-tabs/pill-tabs';
 import { DashboardTabComponent } from './components/dashboard-tab/dashboard-tab';
 import { TransactionsTabComponent } from './components/transactions-tab/transactions-tab';
-import { RecurringTabComponent } from './components/recurring-tab/recurring-tab';
+import { PlanningTabComponent } from './components/planning-tab/planning-tab';
 import { AccountsTabComponent } from './components/accounts-tab/accounts-tab';
 import { BudgetTabComponent } from './components/budget-tab/budget-tab';
 import { ImportModalComponent } from './components/import-modal/import-modal';
@@ -17,7 +17,7 @@ import { ImportModalComponent } from './components/import-modal/import-modal';
     PillTabsComponent,
     DashboardTabComponent,
     TransactionsTabComponent,
-    RecurringTabComponent,
+    PlanningTabComponent,
     AccountsTabComponent,
     BudgetTabComponent,
     ImportModalComponent,
@@ -32,7 +32,7 @@ export class FinanceComponent {
   householdId = computed(() => this.selectedHousehold()?.id ?? '');
 
   activeTab = signal(0);
-  readonly tabs = ['Painel', 'Transações', 'Recorrentes', 'Contas', 'Orçamento'];
+  readonly tabs = ['Painel', 'Transações', 'Planejamento', 'Contas', 'Orçamento'];
 
   showImport = signal(false);
 

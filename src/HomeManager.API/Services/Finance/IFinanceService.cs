@@ -25,12 +25,6 @@ public interface IFinanceService
     Task<ApiResponse<ImportResult>> ImportTransactionsAsync(ImportTransactionsRequest request, Guid userId);
     Task<ApiResponse<ImportResult>> ImportAccountsAsync(ImportAccountsRequest request, Guid userId);
 
-    // Templates
-    Task<ApiResponse<List<TemplateResponse>>> GetTemplatesAsync(Guid householdId, Guid userId);
-    Task<ApiResponse<TemplateResponse>> CreateTemplateAsync(CreateTemplateRequest request, Guid userId);
-    Task<ApiResponse<bool>> DeleteTemplateAsync(Guid id, Guid userId);
-    Task<ApiResponse<ApplyResult>> ApplyTemplatesAsync(ApplyTemplatesRequest request, Guid userId);
-
     // Budget
     Task<ApiResponse<BudgetResponse>> GetBudgetAsync(Guid householdId, Guid userId);
     Task<ApiResponse<BudgetResponse>> UpsertBudgetAsync(UpsertBudgetRequest request, Guid userId);
@@ -44,4 +38,3 @@ public interface IFinanceService
 }
 
 public record ImportResult(int Imported, int Skipped);
-public record ApplyResult(int Generated, int Skipped);

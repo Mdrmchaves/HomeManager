@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
+import { FinanceStateService } from '../../../../core/services/finance-state.service';
 import {
   FinancePlanningItem,
   PlanningItemType,
@@ -11,6 +12,8 @@ import {
   CATEGORY_LABELS,
   FinanceCategory,
   SUPPORTED_CURRENCIES,
+  CURRENCY_SYMBOLS,
+  SupportedCurrency,
 } from '../../../../core/models/finance-budget.model';
 
 const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
@@ -24,14 +27,31 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
 
       <!-- Summary card -->
       @if (items().length > 0) {
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide mb-2">Estimativa mensal</p>
-          @for (entry of monthlySummary(); track entry.currency) {
-            <p class="text-lg font-bold text-emerald-900">
-              {{ entry.total | number:'1.2-2' }} {{ entry.currency }}
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between flex-wrap gap-2">
+            <p class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Estimativa mensal</p>
+            <!-- Currency segmented control -->
+            <div class="flex rounded-lg border border-emerald-300 overflow-hidden">
+              @for (cur of currencies; track cur) {
+                <button (click)="displayCurrency.set(cur)"
+                  class="px-2.5 py-1 text-xs font-medium transition-colors border-r border-emerald-300 last:border-r-0"
+                  [class.bg-emerald-600]="displayCurrency() === cur"
+                  [class.text-white]="displayCurrency() === cur"
+                  [class.text-emerald-700]="displayCurrency() !== cur">
+                  {{ cur }}
+                </button>
+              }
+            </div>
+          </div>
+          <div>
+            <p class="text-2xl font-bold text-emerald-900">
+              {{ currencySymbol() }} {{ convertedTotal() | number:'1.2-2' }}
             </p>
-          }
-          <p class="text-xs text-emerald-600 mt-1">{{ items().length }} compromisso{{ items().length !== 1 ? 's' : '' }} activo{{ items().length !== 1 ? 's' : '' }}</p>
+            @if (!financeState.rates()) {
+              <p class="text-xs text-emerald-500 mt-0.5">Taxas não disponíveis — valores sem conversão</p>
+            }
+          </div>
+          <p class="text-xs text-emerald-600">{{ items().length }} compromisso{{ items().length !== 1 ? 's' : '' }} activo{{ items().length !== 1 ? 's' : '' }}</p>
         </div>
       }
 
@@ -214,6 +234,7 @@ export class PlanningTabComponent implements OnChanges {
   @Input({ required: true }) householdId!: string;
 
   private financeService = inject(FinanceService);
+  financeState = inject(FinanceStateService);
   private fb = inject(FormBuilder);
 
   loading = signal(false);
@@ -221,19 +242,23 @@ export class PlanningTabComponent implements OnChanges {
   items = signal<FinancePlanningItem[]>([]);
   showForm = signal(false);
   editingId = signal<string | null>(null);
+  displayCurrency = signal<SupportedCurrency>('BRL');
 
   readonly categories = CATEGORIES;
-  readonly currencies = SUPPORTED_CURRENCIES;
+  readonly currencies = [...SUPPORTED_CURRENCIES] as SupportedCurrency[];
   readonly label = (cat: string) => CATEGORY_LABELS[cat as FinanceCategory] ?? cat;
 
-  monthlySummary = computed(() => {
-    const totals = new Map<string, number>();
-    for (const item of this.items()) {
-      totals.set(item.currency, (totals.get(item.currency) ?? 0) + item.amount);
-    }
-    return Array.from(totals.entries())
-      .sort((a, b) => b[1] - a[1])
-      .map(([currency, total]) => ({ currency, total }));
+  currencySymbol = computed(() => CURRENCY_SYMBOLS[this.displayCurrency()]);
+
+  convertedTotal = computed(() => {
+    const rates = this.financeState.rates()?.rates;
+    const target = this.displayCurrency();
+    return this.items().reduce((sum, item) => {
+      const amount = rates
+        ? item.amount * (rates[item.currency] ?? 1) / (rates[target] ?? 1)
+        : item.currency === target ? item.amount : 0;
+      return sum + amount;
+    }, 0);
   });
 
   form = this.fb.group({

@@ -53,8 +53,8 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
           </div>
           <p class="text-xs text-emerald-600">
             {{ totalItemCount() }} compromisso{{ totalItemCount() !== 1 ? 's' : '' }} activo{{ totalItemCount() !== 1 ? 's' : '' }}
-            @if (excludedCcIds().size > 0) {
-              · {{ excludedCcIds().size }} fatura{{ excludedCcIds().size !== 1 ? 's' : '' }} CC excluída{{ excludedCcIds().size !== 1 ? 's' : '' }} do total
+            @if (excludedCount() > 0) {
+              · {{ excludedCount() }} excluído{{ excludedCount() !== 1 ? 's' : '' }} do total
             }
           </p>
         </div>
@@ -229,7 +229,8 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
       } @else if (items().length > 0) {
         <div class="space-y-2">
           @for (item of items(); track item.id) {
-            <div class="bg-white rounded-xl border border-stone-200 p-4">
+            <div class="bg-white rounded-xl border border-stone-200 p-4 transition-opacity"
+              [class.opacity-50]="excludedItemIds().has(item.id)">
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
@@ -257,6 +258,20 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
                   }
                 </div>
                 <div class="flex gap-1 shrink-0">
+                  <button (click)="toggleItemExclusion(item.id)"
+                    class="p-1.5 rounded-lg transition-colors hover:bg-stone-100"
+                    [title]="excludedItemIds().has(item.id) ? 'Incluir no total' : 'Excluir do total'">
+                    @if (!excludedItemIds().has(item.id)) {
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    } @else {
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                      </svg>
+                    }
+                  </button>
                   <button (click)="startEdit(item)"
                     class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -291,6 +306,7 @@ export class PlanningTabComponent implements OnChanges {
   items = signal<FinancePlanningItem[]>([]);
   ccAccounts = signal<FinanceAccount[]>([]);
   excludedCcIds = signal<Set<string>>(new Set());
+  excludedItemIds = signal<Set<string>>(new Set());
   showForm = signal(false);
   editingId = signal<string | null>(null);
   displayCurrency = signal<SupportedCurrency>('BRL');
@@ -303,25 +319,30 @@ export class PlanningTabComponent implements OnChanges {
 
   totalItemCount = computed(() => this.items().length + this.ccAccounts().length);
 
+  excludedCount = computed(() => this.excludedCcIds().size + this.excludedItemIds().size);
+
   convertedTotal = computed(() => {
     const rates = this.financeState.rates()?.rates;
     const target = this.displayCurrency();
-    const excluded = this.excludedCcIds();
+    const excludedCc = this.excludedCcIds();
+    const excludedItems = this.excludedItemIds();
 
     const ccTotal = this.ccAccounts()
-      .filter(a => !excluded.has(a.id))
+      .filter(a => !excludedCc.has(a.id))
       .reduce((sum, a) => {
         const amount = a.currentInvoice ?? 0;
         if (!rates) return sum + (a.currency === target ? amount : 0);
         return sum + amount * (rates[a.currency] ?? 1) / (rates[target] ?? 1);
       }, 0);
 
-    const planningTotal = this.items().reduce((sum, item) => {
-      const amount = rates
-        ? item.amount * (rates[item.currency] ?? 1) / (rates[target] ?? 1)
-        : item.currency === target ? item.amount : 0;
-      return sum + amount;
-    }, 0);
+    const planningTotal = this.items()
+      .filter(item => !excludedItems.has(item.id))
+      .reduce((sum, item) => {
+        const amount = rates
+          ? item.amount * (rates[item.currency] ?? 1) / (rates[target] ?? 1)
+          : item.currency === target ? item.amount : 0;
+        return sum + amount;
+      }, 0);
 
     return ccTotal + planningTotal;
   });
@@ -339,8 +360,10 @@ export class PlanningTabComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['householdId']) {
-      const stored = localStorage.getItem(`hm_cc_excluded_${this.householdId}`);
-      this.excludedCcIds.set(new Set(stored ? JSON.parse(stored) : []));
+      const storedCc = localStorage.getItem(`hm_cc_excluded_${this.householdId}`);
+      this.excludedCcIds.set(new Set(storedCc ? JSON.parse(storedCc) : []));
+      const storedItems = localStorage.getItem(`hm_item_excluded_${this.householdId}`);
+      this.excludedItemIds.set(new Set(storedItems ? JSON.parse(storedItems) : []));
       this.load();
       this.loadCcAccounts();
     } else if (changes['month']) {
@@ -357,6 +380,17 @@ export class PlanningTabComponent implements OnChanges {
     }
     this.excludedCcIds.set(next);
     localStorage.setItem(`hm_cc_excluded_${this.householdId}`, JSON.stringify([...next]));
+  }
+
+  toggleItemExclusion(itemId: string): void {
+    const next = new Set(this.excludedItemIds());
+    if (next.has(itemId)) {
+      next.delete(itemId);
+    } else {
+      next.add(itemId);
+    }
+    this.excludedItemIds.set(next);
+    localStorage.setItem(`hm_item_excluded_${this.householdId}`, JSON.stringify([...next]));
   }
 
   openForm(): void {

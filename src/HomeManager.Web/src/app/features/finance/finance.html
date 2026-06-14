@@ -62,7 +62,7 @@
         <app-transactions-tab [householdId]="householdId()" [month]="activeMonth()" />
       }
       @if (activeTab() === 2) {
-        <app-planning-tab [householdId]="householdId()" />
+        <app-planning-tab [householdId]="householdId()" [month]="activeMonth()" />
       }
       @if (activeTab() === 3) {
         <app-accounts-tab [householdId]="householdId()" [month]="activeMonth()" />

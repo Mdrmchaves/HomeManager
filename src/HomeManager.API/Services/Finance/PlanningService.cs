@@ -22,7 +22,7 @@ public class PlanningService : IPlanningService
         await m_context.HouseholdUsers
             .AnyAsync(hu => hu.HouseholdId == householdId && hu.UserId == userId);
 
-    public async Task<ApiResponse<List<PlanningItemResponse>>> GetItemsAsync(Guid householdId, Guid userId)
+    public async Task<ApiResponse<List<PlanningItemResponse>>> GetItemsAsync(Guid householdId, Guid userId, string? month = null)
     {
         try
         {
@@ -36,8 +36,24 @@ public class PlanningService : IPlanningService
                 .ThenBy(p => p.Description)
                 .ToListAsync();
 
+            Dictionary<Guid, (Guid txId, bool isCC)> paidMap = [];
+            if (!string.IsNullOrEmpty(month) && items.Count > 0)
+            {
+                var ids = items.Select(i => i.Id).ToHashSet();
+                var paidTxs = await m_context.FinanceTransactions
+                    .Where(t => t.PlanningItemId.HasValue && ids.Contains(t.PlanningItemId.Value) && t.RefMonth == month)
+                    .Include(t => t.Account)
+                    .ToListAsync();
+                foreach (var t in paidTxs)
+                    paidMap[t.PlanningItemId!.Value] = (t.Id, t.Account?.Type == "cc");
+            }
+
             return ApiResponse<List<PlanningItemResponse>>.SuccessResponse(
-                items.Select(PlanningItemResponse.FromEntity).ToList());
+                items.Select(p =>
+                {
+                    var paid = paidMap.TryGetValue(p.Id, out var info);
+                    return PlanningItemResponse.FromEntity(p, paid, paid ? info.txId : null, paid && info.isCC);
+                }).ToList());
         }
         catch (Exception ex)
         {

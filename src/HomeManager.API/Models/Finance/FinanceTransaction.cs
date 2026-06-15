@@ -63,9 +63,13 @@ public class FinanceTransaction
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("planning_item_id")]
+    public Guid? PlanningItemId { get; set; }
+
     // Navigation
     public Household Household { get; set; } = null!;
     public User? Creator { get; set; }
     public FinanceAccount? Account { get; set; }
     public FinanceAccount? ToAccount { get; set; }
+    public FinancePlanningItem? PlanningItem { get; set; }
 }

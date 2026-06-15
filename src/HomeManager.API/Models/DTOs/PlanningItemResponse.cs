@@ -16,8 +16,15 @@ public class PlanningItemResponse
     public int InstallmentsPaid { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public bool PaidThisMonth { get; set; } = false;
+    public Guid? PaidTransactionId { get; set; }
+    public bool PaidViaCC { get; set; } = false;
 
-    public static PlanningItemResponse FromEntity(FinancePlanningItem item) => new()
+    public static PlanningItemResponse FromEntity(
+        FinancePlanningItem item,
+        bool paidThisMonth = false,
+        Guid? paidTransactionId = null,
+        bool paidViaCC = false) => new()
     {
         Id = item.Id,
         HouseholdId = item.HouseholdId,
@@ -31,5 +38,8 @@ public class PlanningItemResponse
         InstallmentsPaid = item.InstallmentsPaid,
         IsActive = item.IsActive,
         CreatedAt = item.CreatedAt,
+        PaidThisMonth = paidThisMonth,
+        PaidTransactionId = paidTransactionId,
+        PaidViaCC = paidViaCC,
     };
 }

@@ -31,11 +31,11 @@ public class PlanningController : ControllerBase
         return Guid.Parse(userIdClaim);
     }
 
-    // GET: api/planning?householdId={guid}
+    // GET: api/planning?householdId={guid}&month={YYYY-MM}
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<PlanningItemResponse>>>> GetItems([FromQuery] Guid householdId)
+    public async Task<ActionResult<ApiResponse<List<PlanningItemResponse>>>> GetItems([FromQuery] Guid householdId, [FromQuery] string? month = null)
     {
-        var result = await m_planningService.GetItemsAsync(householdId, GetUserId());
+        var result = await m_planningService.GetItemsAsync(householdId, GetUserId(), month);
         return result.Success ? Ok(result) : Forbid();
     }
 

@@ -136,8 +136,9 @@ export class FinanceService {
 
   // ── Planning ──────────────────────────────────────────────────────────────
 
-  getPlanningItems(householdId: string): Observable<FinancePlanningItem[]> {
-    const params = new HttpParams().set('householdId', householdId);
+  getPlanningItems(householdId: string, month?: string): Observable<FinancePlanningItem[]> {
+    let params = new HttpParams().set('householdId', householdId);
+    if (month) params = params.set('month', month);
     return this.http
       .get<ApiResponse<FinancePlanningItem[]>>(`${environment.apiUrl}/planning`, { params })
       .pipe(map(r => r.data));

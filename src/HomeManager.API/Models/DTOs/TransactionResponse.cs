@@ -21,6 +21,7 @@ public class TransactionResponse
     public string? Category { get; set; }
     public decimal? AppliedRate { get; set; }
     public DateTime CreatedAt { get; set; }
+    public Guid? PlanningItemId { get; set; }
 
     public static TransactionResponse FromEntity(FinanceTransaction tx) => new()
     {
@@ -41,5 +42,6 @@ public class TransactionResponse
         Category = tx.Category,
         AppliedRate = tx.AppliedRate,
         CreatedAt = tx.CreatedAt,
+        PlanningItemId = tx.PlanningItemId,
     };
 }

@@ -16,13 +16,14 @@ import {
   SupportedCurrency,
 } from '../../../../core/models/finance-budget.model';
 import { FinanceAccount } from '../../../../core/models/finance-account.model';
+import { TransactionFormModalComponent } from '../transaction-form-modal/transaction-form-modal';
 
 const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
 
 @Component({
   selector: 'app-planning-tab',
   standalone: true,
-  imports: [DecimalPipe, ReactiveFormsModule],
+  imports: [DecimalPipe, ReactiveFormsModule, TransactionFormModalComponent],
   template: `
     <div class="p-4 md:p-8 space-y-5 max-w-3xl mx-auto">
 
@@ -43,10 +44,19 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
               }
             </div>
           </div>
-          <div>
-            <p class="text-2xl font-bold text-emerald-900">
-              {{ currencySymbol() }} {{ convertedTotal() | number:'1.2-2' }}
-            </p>
+          <div class="space-y-1">
+            <div>
+              <p class="text-2xl font-bold text-emerald-900">
+                {{ currencySymbol() }} {{ convertedTotal() | number:'1.2-2' }}
+              </p>
+              <p class="text-xs text-emerald-600">Total</p>
+            </div>
+            <div>
+              <p class="text-lg font-semibold text-amber-800">
+                {{ currencySymbol() }} {{ faltaPagar() | number:'1.2-2' }}
+              </p>
+              <p class="text-xs text-amber-600">Falta pagar</p>
+            </div>
             @if (!financeState.rates()) {
               <p class="text-xs text-emerald-500 mt-0.5">Taxas não disponíveis — valores sem conversão</p>
             }
@@ -230,11 +240,19 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
         <div class="space-y-2">
           @for (item of items(); track item.id) {
             <div class="bg-white rounded-xl border border-stone-200 p-4 transition-opacity"
-              [class.opacity-50]="excludedItemIds().has(item.id)">
+              [class.opacity-50]="excludedItemIds().has(item.id)"
+              [class.border-blue-200]="item.paidViaCC && !manualCcIncludeIds().has(item.id) && !excludedItemIds().has(item.id)"
+              [class.bg-blue-50]="item.paidViaCC && !manualCcIncludeIds().has(item.id) && !excludedItemIds().has(item.id)">
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <p class="text-sm font-medium text-stone-800">{{ item.description }}</p>
+                    @if (item.paidThisMonth) {
+                      <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">✓ Pago</span>
+                    }
+                    @if (item.paidViaCC && !item.paidThisMonth) {
+                      <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">CC</span>
+                    }
                     @if (item.type === 'installment') {
                       <span class="px-1.5 py-0.5 rounded text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
                         {{ item.installmentsPaid }}/{{ item.totalInstallments }} parcelas
@@ -258,20 +276,47 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
                   }
                 </div>
                 <div class="flex gap-1 shrink-0">
-                  <button (click)="toggleItemExclusion(item.id)"
-                    class="p-1.5 rounded-lg transition-colors hover:bg-stone-100"
-                    [title]="excludedItemIds().has(item.id) ? 'Incluir no total' : 'Excluir do total'">
-                    @if (!excludedItemIds().has(item.id)) {
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  <!-- Registar pagamento (only for unpaid items) -->
+                  @if (!item.paidThisMonth) {
+                    <button (click)="startPay(item)" title="Registar pagamento"
+                      class="p-1.5 rounded-lg text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
-                    } @else {
-                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
-                      </svg>
-                    }
-                  </button>
+                    </button>
+                  }
+                  <!-- Eye toggle -->
+                  @if (item.paidViaCC) {
+                    <button (click)="toggleCcPaidInclude(item.id)"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-blue-100"
+                      [title]="manualCcIncludeIds().has(item.id) ? 'Excluir do total (pago via CC)' : 'Incluir no total'">
+                      @if (manualCcIncludeIds().has(item.id)) {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                      } @else {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                      }
+                    </button>
+                  } @else {
+                    <button (click)="toggleItemExclusion(item.id)"
+                      class="p-1.5 rounded-lg transition-colors hover:bg-stone-100"
+                      [title]="excludedItemIds().has(item.id) ? 'Incluir no total' : 'Excluir do total'">
+                      @if (!excludedItemIds().has(item.id)) {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                      } @else {
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                        </svg>
+                      }
+                    </button>
+                  }
                   <button (click)="startEdit(item)"
                     class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -291,6 +336,16 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
         </div>
       }
     </div>
+
+    <!-- Pay transaction modal -->
+    @if (showPayModal() && payingItem()) {
+      <app-transaction-form-modal
+        [householdId]="householdId"
+        [month]="month"
+        [prefillPlanningItem]="{ id: payingItem()!.id, description: payingItem()!.description, amount: payingItem()!.amount, currency: payingItem()!.currency, category: payingItem()!.category }"
+        (closed)="onPayModalClosed($event)"
+      />
+    }
   `,
 })
 export class PlanningTabComponent implements OnChanges {
@@ -307,9 +362,12 @@ export class PlanningTabComponent implements OnChanges {
   ccAccounts = signal<FinanceAccount[]>([]);
   excludedCcIds = signal<Set<string>>(new Set());
   excludedItemIds = signal<Set<string>>(new Set());
+  manualCcIncludeIds = signal<Set<string>>(new Set());
   showForm = signal(false);
   editingId = signal<string | null>(null);
   displayCurrency = signal<SupportedCurrency>('BRL');
+  showPayModal = signal(false);
+  payingItem = signal<FinancePlanningItem | null>(null);
 
   readonly categories = CATEGORIES;
   readonly currencies = [...SUPPORTED_CURRENCIES] as SupportedCurrency[];
@@ -326,6 +384,7 @@ export class PlanningTabComponent implements OnChanges {
     const target = this.displayCurrency();
     const excludedCc = this.excludedCcIds();
     const excludedItems = this.excludedItemIds();
+    const manualInclude = this.manualCcIncludeIds();
 
     const ccTotal = this.ccAccounts()
       .filter(a => !excludedCc.has(a.id))
@@ -336,7 +395,7 @@ export class PlanningTabComponent implements OnChanges {
       }, 0);
 
     const planningTotal = this.items()
-      .filter(item => !excludedItems.has(item.id))
+      .filter(item => !excludedItems.has(item.id) && !(item.paidViaCC && !manualInclude.has(item.id)))
       .reduce((sum, item) => {
         const amount = rates
           ? item.amount * (rates[item.currency] ?? 1) / (rates[target] ?? 1)
@@ -345,6 +404,37 @@ export class PlanningTabComponent implements OnChanges {
       }, 0);
 
     return ccTotal + planningTotal;
+  });
+
+  faltaPagar = computed(() => {
+    const rates = this.financeState.rates()?.rates;
+    const target = this.displayCurrency();
+    const excludedCc = this.excludedCcIds();
+    const excludedItems = this.excludedItemIds();
+    const manualInclude = this.manualCcIncludeIds();
+
+    const ccFalta = this.ccAccounts()
+      .filter(a => !excludedCc.has(a.id))
+      .reduce((sum, a) => {
+        const amount = a.currentInvoice ?? 0;
+        if (!rates) return sum + (a.currency === target ? amount : 0);
+        return sum + amount * (rates[a.currency] ?? 1) / (rates[target] ?? 1);
+      }, 0);
+
+    const planningFalta = this.items()
+      .filter(item =>
+        !excludedItems.has(item.id) &&
+        !item.paidThisMonth &&
+        !(item.paidViaCC && !manualInclude.has(item.id))
+      )
+      .reduce((sum, item) => {
+        const amount = rates
+          ? item.amount * (rates[item.currency] ?? 1) / (rates[target] ?? 1)
+          : item.currency === target ? item.amount : 0;
+        return sum + amount;
+      }, 0);
+
+    return ccFalta + planningFalta;
   });
 
   form = this.fb.group({
@@ -364,10 +454,13 @@ export class PlanningTabComponent implements OnChanges {
       this.excludedCcIds.set(new Set(storedCc ? JSON.parse(storedCc) : []));
       const storedItems = localStorage.getItem(`hm_item_excluded_${this.householdId}`);
       this.excludedItemIds.set(new Set(storedItems ? JSON.parse(storedItems) : []));
+      const storedCcInclude = localStorage.getItem(`hm_planning_cc_include_${this.householdId}`);
+      this.manualCcIncludeIds.set(new Set(storedCcInclude ? JSON.parse(storedCcInclude) : []));
       this.load();
       this.loadCcAccounts();
     } else if (changes['month']) {
       this.loadCcAccounts();
+      this.load();
     }
   }
 
@@ -391,6 +484,31 @@ export class PlanningTabComponent implements OnChanges {
     }
     this.excludedItemIds.set(next);
     localStorage.setItem(`hm_item_excluded_${this.householdId}`, JSON.stringify([...next]));
+  }
+
+  toggleCcPaidInclude(itemId: string): void {
+    const next = new Set(this.manualCcIncludeIds());
+    if (next.has(itemId)) {
+      next.delete(itemId);
+    } else {
+      next.add(itemId);
+    }
+    this.manualCcIncludeIds.set(next);
+    localStorage.setItem(`hm_planning_cc_include_${this.householdId}`, JSON.stringify([...next]));
+  }
+
+  startPay(item: FinancePlanningItem): void {
+    this.payingItem.set(item);
+    this.showPayModal.set(true);
+  }
+
+  onPayModalClosed(saved: boolean): void {
+    this.showPayModal.set(false);
+    this.payingItem.set(null);
+    if (saved) {
+      this.load();
+      this.loadCcAccounts();
+    }
   }
 
   openForm(): void {
@@ -490,7 +608,7 @@ export class PlanningTabComponent implements OnChanges {
     if (!this.householdId) return;
     this.loading.set(true);
     try {
-      const data = await firstValueFrom(this.financeService.getPlanningItems(this.householdId));
+      const data = await firstValueFrom(this.financeService.getPlanningItems(this.householdId, this.month));
       this.items.set(data);
     } catch {
       // ignore

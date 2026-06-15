@@ -3,10 +3,12 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { DecimalPipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
 import { FinanceStateService } from '../../../../core/services/finance-state.service';
 import { FinanceTransaction, TransactionCategory } from '../../../../core/models/finance-transaction.model';
+import { FinancePlanningItem } from '../../../../core/models/finance-planning.model';
 import { FinanceRates, CATEGORY_LABELS, CATEGORY_COLORS, FinanceCategory, SUPPORTED_CURRENCIES } from '../../../../core/models/finance-budget.model';
 
 const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
@@ -16,7 +18,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
 @Component({
   selector: 'app-transaction-form-modal',
   standalone: true,
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, DecimalPipe],
   template: `
     <!-- Backdrop -->
     <div class="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
@@ -129,6 +131,18 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
 
             } @else {
               <!-- Income / Expense form -->
+
+              <!-- Planning item selector (optional) -->
+              @if (planningItems().length > 0) {
+                <select formControlName="planningItemId" (change)="onPlanningItemChange()"
+                  class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500">
+                  <option [ngValue]="null">Vincular a compromisso (opcional)</option>
+                  @for (item of planningItems(); track item.id) {
+                    <option [value]="item.id">{{ item.description }} — {{ item.amount | number:'1.2-2' }} {{ item.currency }}</option>
+                  }
+                </select>
+              }
+
               <select formControlName="accountId" (change)="onAccountChange()"
                 class="w-full px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500"
                 [class.border-stone-200]="!(form.controls['accountId'].invalid && form.controls['accountId'].touched)"
@@ -201,6 +215,7 @@ export class TransactionFormModalComponent implements OnInit {
   @Input({ required: true }) householdId!: string;
   @Input({ required: true }) month!: string;
   @Input() transaction: FinanceTransaction | null = null;
+  @Input() prefillPlanningItem?: { id: string; description: string; amount: number; currency: string; category?: string };
   @Output() closed = new EventEmitter<boolean>();
 
   private financeService = inject(FinanceService);
@@ -210,6 +225,7 @@ export class TransactionFormModalComponent implements OnInit {
   saving = signal(false);
   error = signal('');
   exchangeRateHint = signal('');
+  planningItems = signal<FinancePlanningItem[]>([]);
 
   // Read from shared state — no independent HTTP call
   accounts = this.financeState.accounts;
@@ -239,6 +255,7 @@ export class TransactionFormModalComponent implements OnInit {
     refMonth: [''],
     type: ['expense', Validators.required],
     category: [null as string | null, Validators.required],
+    planningItemId: [null as string | null],
   });
 
   // toSignal wraps form control Observable into a Signal so computed() tracks it reactively.
@@ -257,7 +274,14 @@ export class TransactionFormModalComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.form.patchValue({ refMonth: this.month });
-    // accounts and rates come from FinanceStateService — already loaded by parent
+
+    // Load planning items for the selector
+    try {
+      const items = await firstValueFrom(this.financeService.getPlanningItems(this.householdId));
+      this.planningItems.set(items);
+    } catch {
+      // non-critical — selector just won't show
+    }
 
     if (this.transaction) {
       const tx = this.transaction;
@@ -272,8 +296,18 @@ export class TransactionFormModalComponent implements OnInit {
         refMonth: tx.refMonth,
         type: tx.type,
         category: tx.category ?? null,
+        planningItemId: tx.planningItemId ?? null,
       });
       this.updateCategoryValidator();
+    } else if (this.prefillPlanningItem) {
+      const p = this.prefillPlanningItem;
+      this.form.patchValue({
+        planningItemId: p.id,
+        description: p.description,
+        amount: p.amount,
+        currency: p.currency,
+        category: p.category ?? null,
+      });
     }
   }
 
@@ -283,7 +317,7 @@ export class TransactionFormModalComponent implements OnInit {
 
   setType(type: string): void {
     if (type === 'transfer') {
-      this.form.patchValue({ type, category: null });
+      this.form.patchValue({ type, category: null, planningItemId: null });
     } else {
       this.form.patchValue({ type, category: null, toAccountId: null, toAmount: null });
       this.exchangeRateHint.set('');
@@ -305,6 +339,21 @@ export class TransactionFormModalComponent implements OnInit {
     const id = this.form.value.accountId;
     const acc = this.accounts().find(a => a.id === id);
     if (acc) this.form.patchValue({ currency: acc.currency });
+  }
+
+  onPlanningItemChange(): void {
+    const id = this.form.value.planningItemId;
+    if (!id) return;
+    const item = this.planningItems().find(p => p.id === id);
+    if (!item) return;
+    const current = this.form.getRawValue();
+    // Only pre-fill if fields are at their defaults (not yet user-typed)
+    const patch: Record<string, unknown> = {};
+    if (!current.description) patch['description'] = item.description;
+    if (!current.amount) patch['amount'] = item.amount;
+    if (current.currency === 'BRL' || !current.currency) patch['currency'] = item.currency;
+    if (!current.category && item.category) patch['category'] = item.category;
+    if (Object.keys(patch).length > 0) this.form.patchValue(patch);
   }
 
   onTransferAccountChange(): void {
@@ -355,6 +404,8 @@ export class TransactionFormModalComponent implements OnInit {
 
     try {
       if (this.transaction) {
+        const hadPlanningItem = this.transaction.planningItemId;
+        const newPlanningItemId = v.planningItemId ?? undefined;
         await firstValueFrom(this.financeService.updateTransaction(this.transaction.id, {
           accountId: v.accountId ?? undefined,
           description: v.description!,
@@ -366,6 +417,8 @@ export class TransactionFormModalComponent implements OnInit {
           refMonth: v.refMonth || undefined,
           toAccountId: isTransfer ? (v.toAccountId ?? undefined) : undefined,
           toAmount: isTransfer ? (v.toAmount ?? undefined) : undefined,
+          planningItemId: newPlanningItemId,
+          clearPlanningItemId: !newPlanningItemId && !!hadPlanningItem,
         }));
       } else {
         await firstValueFrom(this.financeService.createTransaction({
@@ -380,6 +433,7 @@ export class TransactionFormModalComponent implements OnInit {
           refMonth: v.refMonth || undefined,
           toAccountId: isTransfer ? (v.toAccountId ?? undefined) : undefined,
           toAmount: isTransfer ? (v.toAmount ?? undefined) : undefined,
+          planningItemId: v.planningItemId ?? undefined,
         }));
       }
       this.closed.emit(true);

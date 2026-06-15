@@ -160,6 +160,13 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(tx => tx.ToAccountId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder
+            .Entity<FinanceTransaction>()
+            .HasOne(tx => tx.PlanningItem)
+            .WithMany()
+            .HasForeignKey(tx => tx.PlanningItemId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // FinanceBudget — unique per household
         modelBuilder
             .Entity<FinanceBudget>()

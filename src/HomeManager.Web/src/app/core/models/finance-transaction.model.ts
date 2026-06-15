@@ -18,6 +18,7 @@ export interface FinanceTransaction {
   type: TransactionType;
   category?: TransactionCategory;
   createdAt: string;
+  planningItemId?: string;
 }
 
 export interface CreateTransactionRequest {
@@ -32,6 +33,7 @@ export interface CreateTransactionRequest {
   refMonth?: string;  // YYYY-MM; if absent, computed by backend
   toAccountId?: string;
   toAmount?: number;
+  planningItemId?: string;
 }
 
 export interface UpdateTransactionRequest {
@@ -45,6 +47,8 @@ export interface UpdateTransactionRequest {
   refMonth?: string;
   toAccountId?: string;
   toAmount?: number;
+  planningItemId?: string;
+  clearPlanningItemId?: boolean;
 }
 
 export interface PagedResponse<T> {

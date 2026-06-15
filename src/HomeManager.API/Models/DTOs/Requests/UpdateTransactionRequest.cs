@@ -10,5 +10,7 @@ public record UpdateTransactionRequest(
     string? Category,
     string? RefMonth,
     Guid? ToAccountId,
-    decimal? ToAmount
+    decimal? ToAmount,
+    Guid? PlanningItemId = null,
+    bool ClearPlanningItemId = false
 );

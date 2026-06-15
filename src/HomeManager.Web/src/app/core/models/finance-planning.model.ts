@@ -13,6 +13,9 @@ export interface FinancePlanningItem {
   installmentsPaid: number;
   isActive: boolean;
   createdAt: string;
+  paidThisMonth: boolean;
+  paidTransactionId?: string;
+  paidViaCC: boolean;
 }
 
 export interface CreatePlanningItemRequest {

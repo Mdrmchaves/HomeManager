@@ -457,8 +457,21 @@ public class FinanceService : IFinanceService
                 CreatedAt = DateTime.UtcNow,
             };
 
+            tx.PlanningItemId = request.PlanningItemId;
             m_context.FinanceTransactions.Add(tx);
             await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, +1);
+
+            if (request.PlanningItemId.HasValue)
+            {
+                var planningItem = await m_context.FinancePlanningItems.FindAsync(request.PlanningItemId.Value);
+                if (planningItem is { Type: "installment" })
+                {
+                    planningItem.InstallmentsPaid++;
+                    if (planningItem.InstallmentsPaid >= (planningItem.TotalInstallments ?? int.MaxValue))
+                        planningItem.IsActive = false;
+                }
+            }
+
             await m_context.SaveChangesAsync();
 
             tx.Account = account;
@@ -493,6 +506,7 @@ public class FinanceService : IFinanceService
             var oldAmount = tx.Amount;
             var oldToAmount = tx.ToAmount;
             var oldType = tx.Type;
+            var oldPlanningItemId = tx.PlanningItemId;
 
             if (request.AccountId.HasValue) tx.AccountId = request.AccountId;
             if (request.Description is not null) tx.Description = request.Description;
@@ -535,6 +549,34 @@ public class FinanceService : IFinanceService
                 tx.AppliedRate = await FetchHistoricalRateAsync(tx.Date, tx.Currency, defaultCurrency);
             }
 
+            bool planningLinkChanged = request.ClearPlanningItemId || request.PlanningItemId.HasValue;
+            Guid? newPlanningItemId = request.ClearPlanningItemId ? null : request.PlanningItemId;
+
+            if (planningLinkChanged && oldPlanningItemId != newPlanningItemId)
+            {
+                if (oldPlanningItemId.HasValue)
+                {
+                    var oldItem = await m_context.FinancePlanningItems.FindAsync(oldPlanningItemId.Value);
+                    if (oldItem is { Type: "installment" })
+                    {
+                        oldItem.InstallmentsPaid = Math.Max(0, oldItem.InstallmentsPaid - 1);
+                        if (!oldItem.IsActive && oldItem.InstallmentsPaid < (oldItem.TotalInstallments ?? int.MaxValue))
+                            oldItem.IsActive = true;
+                    }
+                }
+                if (newPlanningItemId.HasValue)
+                {
+                    var newItem = await m_context.FinancePlanningItems.FindAsync(newPlanningItemId.Value);
+                    if (newItem is { Type: "installment" })
+                    {
+                        newItem.InstallmentsPaid++;
+                        if (newItem.InstallmentsPaid >= (newItem.TotalInstallments ?? int.MaxValue))
+                            newItem.IsActive = false;
+                    }
+                }
+                tx.PlanningItemId = newPlanningItemId;
+            }
+
             // Reverse old balance effect, then apply new
             await AdjustAccountBalancesAsync(oldType, oldAccountId, oldAmount, oldToAccountId, oldToAmount, -1);
             await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, +1);
@@ -561,6 +603,17 @@ public class FinanceService : IFinanceService
 
             if (!await HasAccessAsync(tx.HouseholdId, userId))
                 return ApiResponse<bool>.ErrorResponse("Access denied");
+
+            if (tx.PlanningItemId.HasValue)
+            {
+                var planningItem = await m_context.FinancePlanningItems.FindAsync(tx.PlanningItemId.Value);
+                if (planningItem is { Type: "installment" })
+                {
+                    planningItem.InstallmentsPaid = Math.Max(0, planningItem.InstallmentsPaid - 1);
+                    if (!planningItem.IsActive && planningItem.InstallmentsPaid < (planningItem.TotalInstallments ?? int.MaxValue))
+                        planningItem.IsActive = true;
+                }
+            }
 
             await AdjustAccountBalancesAsync(tx.Type, tx.AccountId, tx.Amount, tx.ToAccountId, tx.ToAmount, -1);
             m_context.FinanceTransactions.Remove(tx);

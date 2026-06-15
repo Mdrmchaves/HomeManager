@@ -120,109 +120,11 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
         </div>
       }
 
-      <!-- Add button / form toggle -->
-      @if (!showForm()) {
-        <button (click)="openForm()"
-          class="w-full py-2.5 rounded-xl text-sm font-medium border-2 border-dashed border-stone-200 text-stone-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
-          + Novo compromisso
-        </button>
-      } @else {
-        <div class="bg-white rounded-xl border border-stone-200 p-5 space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-stone-700">
-              {{ editingId() ? 'Editar compromisso' : 'Novo compromisso' }}
-            </h3>
-            <button (click)="closeForm()" class="text-stone-400 hover:text-stone-600 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-            </button>
-          </div>
-
-          <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3">
-            <input formControlName="description" placeholder="Descrição (ex: Aluguel, Netflix, Sofá)" type="text"
-              class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-
-            <div class="flex gap-2">
-              <input formControlName="amount" placeholder="Valor" type="number" step="0.01" min="0.01"
-                class="flex-1 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-              <select formControlName="currency"
-                class="px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500">
-                @for (cur of currencies; track cur) {
-                  <option [value]="cur">{{ cur }}</option>
-                }
-              </select>
-            </div>
-
-            <input formControlName="dayOfMonth" placeholder="Dia de vencimento (1-31, opcional)" type="number" min="1" max="31"
-              class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-
-            <div class="flex gap-2">
-              <button type="button" (click)="setType('fixed')"
-                class="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-                [class.bg-stone-800]="form.value.type === 'fixed'"
-                [class.text-white]="form.value.type === 'fixed'"
-                [class.border-stone-800]="form.value.type === 'fixed'"
-                [class.border-stone-200]="form.value.type !== 'fixed'"
-                [class.text-stone-500]="form.value.type !== 'fixed'">
-                Recorrente
-              </button>
-              <button type="button" (click)="setType('installment')"
-                class="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors"
-                [class.bg-stone-800]="form.value.type === 'installment'"
-                [class.text-white]="form.value.type === 'installment'"
-                [class.border-stone-800]="form.value.type === 'installment'"
-                [class.border-stone-200]="form.value.type !== 'installment'"
-                [class.text-stone-500]="form.value.type !== 'installment'">
-                Parcelado
-              </button>
-            </div>
-
-            @if (form.value.type === 'installment') {
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="block text-xs text-stone-500 mb-1">Total de parcelas</label>
-                  <input formControlName="totalInstallments" type="number" min="1" placeholder="ex: 12"
-                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-                </div>
-                <div>
-                  <label class="block text-xs text-stone-500 mb-1">Parcelas pagas</label>
-                  <input formControlName="installmentsPaid" type="number" min="0" placeholder="ex: 0"
-                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-                </div>
-              </div>
-            }
-
-            <div class="flex flex-wrap gap-1.5">
-              <button type="button" (click)="form.patchValue({ category: null })"
-                class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                [class.bg-stone-800]="!form.value.category"
-                [class.text-white]="!form.value.category"
-                [class.border-stone-800]="!form.value.category"
-                [class.border-stone-200]="form.value.category"
-                [class.text-stone-500]="form.value.category">
-                Geral
-              </button>
-              @for (cat of categories; track cat) {
-                <button type="button" (click)="form.patchValue({ category: cat })"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
-                  [class.bg-emerald-600]="form.value.category === cat"
-                  [class.text-white]="form.value.category === cat"
-                  [class.border-emerald-600]="form.value.category === cat"
-                  [class.border-stone-200]="form.value.category !== cat"
-                  [class.text-stone-500]="form.value.category !== cat">
-                  {{ label(cat) }}
-                </button>
-              }
-            </div>
-
-            <button type="submit" [disabled]="saving() || form.invalid"
-              class="w-full py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
-              {{ saving() ? 'A guardar…' : (editingId() ? 'Guardar alterações' : 'Adicionar') }}
-            </button>
-          </form>
-        </div>
-      }
+      <!-- Add button -->
+      <button (click)="openForm()"
+        class="w-full py-2.5 rounded-xl text-sm font-medium border-2 border-dashed border-stone-200 text-stone-500 hover:border-emerald-400 hover:text-emerald-600 transition-colors">
+        + Novo compromisso
+      </button>
 
       <!-- Planning items list -->
       @if (loading()) {
@@ -231,7 +133,7 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
             <div class="bg-white rounded-xl border border-stone-200 p-4 animate-pulse h-16"></div>
           }
         </div>
-      } @else if (items().length === 0 && !showForm() && ccAccounts().length === 0) {
+      } @else if (items().length === 0 && ccAccounts().length === 0) {
         <div class="text-center py-12">
           <p class="text-stone-400 text-sm">Nenhum compromisso registado.</p>
           <p class="text-stone-400 text-xs mt-1">Adiciona as tuas contas fixas e parcelamentos.</p>
@@ -336,6 +238,122 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
         </div>
       }
     </div>
+
+    <!-- Planning item form modal -->
+    @if (showForm()) {
+      <div class="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
+        (click)="closeForm()">
+        <div class="bg-white w-full md:max-w-lg rounded-t-2xl md:rounded-2xl shadow-xl flex flex-col max-h-[92vh]"
+          (click)="$event.stopPropagation()">
+
+          <div class="flex items-center justify-between px-5 py-4 border-b border-stone-100 shrink-0">
+            <h2 class="text-base font-semibold text-stone-800">
+              {{ editingId() ? 'Editar compromisso' : 'Novo compromisso' }}
+            </h2>
+            <button type="button" (click)="closeForm()"
+              class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto px-5 py-4">
+            <form [formGroup]="form" (ngSubmit)="submit()" class="space-y-3" id="planning-form">
+
+              <input formControlName="description" placeholder="Descrição (ex: Aluguel, Netflix, Sofá)" type="text"
+                class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+
+              <div class="flex gap-2">
+                <input formControlName="amount" placeholder="Valor" type="number" step="0.01" min="0.01"
+                  class="flex-1 px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                <select formControlName="currency"
+                  class="px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500">
+                  @for (cur of currencies; track cur) {
+                    <option [value]="cur">{{ cur }}</option>
+                  }
+                </select>
+              </div>
+
+              <input formControlName="dayOfMonth" placeholder="Dia de vencimento (1-31, opcional)" type="number" min="1" max="31"
+                class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+
+              <div class="flex gap-2">
+                <button type="button" (click)="setType('fixed')"
+                  class="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+                  [class.bg-stone-800]="form.value.type === 'fixed'"
+                  [class.text-white]="form.value.type === 'fixed'"
+                  [class.border-stone-800]="form.value.type === 'fixed'"
+                  [class.border-stone-200]="form.value.type !== 'fixed'"
+                  [class.text-stone-500]="form.value.type !== 'fixed'">
+                  Recorrente
+                </button>
+                <button type="button" (click)="setType('installment')"
+                  class="flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+                  [class.bg-stone-800]="form.value.type === 'installment'"
+                  [class.text-white]="form.value.type === 'installment'"
+                  [class.border-stone-800]="form.value.type === 'installment'"
+                  [class.border-stone-200]="form.value.type !== 'installment'"
+                  [class.text-stone-500]="form.value.type !== 'installment'">
+                  Parcelado
+                </button>
+              </div>
+
+              @if (form.value.type === 'installment') {
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label class="block text-xs text-stone-500 mb-1">Total de parcelas</label>
+                    <input formControlName="totalInstallments" type="number" min="1" placeholder="ex: 12"
+                      class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs text-stone-500 mb-1">Parcelas pagas</label>
+                    <input formControlName="installmentsPaid" type="number" min="0" placeholder="ex: 0"
+                      class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                  </div>
+                </div>
+              }
+
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" (click)="form.patchValue({ category: null })"
+                  class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+                  [class.bg-stone-800]="!form.value.category"
+                  [class.text-white]="!form.value.category"
+                  [class.border-stone-800]="!form.value.category"
+                  [class.border-stone-200]="form.value.category"
+                  [class.text-stone-500]="form.value.category">
+                  Geral
+                </button>
+                @for (cat of categories; track cat) {
+                  <button type="button" (click)="form.patchValue({ category: cat })"
+                    class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
+                    [class.bg-emerald-600]="form.value.category === cat"
+                    [class.text-white]="form.value.category === cat"
+                    [class.border-emerald-600]="form.value.category === cat"
+                    [class.border-stone-200]="form.value.category !== cat"
+                    [class.text-stone-500]="form.value.category !== cat">
+                    {{ label(cat) }}
+                  </button>
+                }
+              </div>
+
+            </form>
+          </div>
+
+          <div class="flex gap-2 px-5 py-4 border-t border-stone-100 shrink-0">
+            <button type="button" (click)="closeForm()"
+              class="flex-1 py-2 rounded-lg text-sm font-medium border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" form="planning-form" [disabled]="saving() || form.invalid"
+              class="flex-1 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50">
+              {{ saving() ? 'A guardar…' : (editingId() ? 'Guardar alterações' : 'Adicionar') }}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    }
 
     <!-- Pay transaction modal -->
     @if (showPayModal() && payingItem()) {
@@ -542,7 +560,6 @@ export class PlanningTabComponent implements OnChanges {
       category: item.category ?? null,
     });
     this.showForm.set(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   endMonth(item: FinancePlanningItem): string | null {

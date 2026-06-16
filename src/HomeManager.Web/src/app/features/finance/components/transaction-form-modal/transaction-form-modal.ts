@@ -120,10 +120,16 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
                   }
                 </div>
 
-                <input formControlName="date" type="date"
-                  class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
-                <input formControlName="refMonth" type="month" placeholder="Mês ref."
-                  class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                <div>
+                  <label class="block text-xs text-stone-500 mb-1">Data transação</label>
+                  <input formControlName="date" type="date"
+                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-xs text-stone-500 mb-1">Mês referência</label>
+                  <input formControlName="refMonth" type="month"
+                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
+                </div>
               </div>
               @if (exchangeRateHint()) {
                 <p class="text-xs text-blue-500">{{ exchangeRateHint() }}</p>
@@ -167,10 +173,16 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
                     <option [value]="cur">{{ cur }}</option>
                   }
                 </select>
-                <input formControlName="date" type="date"
-                  class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
-                <input formControlName="refMonth" type="month" placeholder="Mês ref."
-                  class="px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                <div>
+                  <label class="block text-xs text-stone-500 mb-1">Data transação</label>
+                  <input formControlName="date" type="date"
+                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
+                <div>
+                  <label class="block text-xs text-stone-500 mb-1">Mês referência</label>
+                  <input formControlName="refMonth" type="month"
+                    class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-emerald-500" />
+                </div>
               </div>
 
               @if (form.value.type === 'expense') {

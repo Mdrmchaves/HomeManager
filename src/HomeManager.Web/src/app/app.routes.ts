@@ -12,6 +12,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/login/login').then(m => m.LoginComponent)
   },
   {
+    path: 'recover-password',
+    loadComponent: () => import('./features/recover-password/recover-password').then(m => m.RecoverPasswordComponent)
+  },
+  {
+    path: 'update-password',
+    loadComponent: () => import('./features/update-password/update-password').then(m => m.UpdatePasswordComponent)
+  },
+  {
     path: '',
     loadComponent: () => import('./shared/layouts/app-shell/app-shell').then(m => m.AppShellComponent),
     canActivate: [authGuard],

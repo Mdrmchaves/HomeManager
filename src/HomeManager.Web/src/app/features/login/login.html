@@ -88,7 +88,12 @@
         </div>
 
         <div class="mb-6">
-          <label class="block text-sm font-medium text-stone-700 mb-1.5" for="password">Palavra-passe</label>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-sm font-medium text-stone-700" for="password">Palavra-passe</label>
+            @if (mode === 'signin') {
+              <a routerLink="/recover-password" class="text-xs text-emerald-600 hover:text-emerald-700 transition-colors">Esqueceu a palavra-passe?</a>
+            }
+          </div>
           <div class="relative">
             <input
               id="password"

@@ -61,6 +61,17 @@ export class SupabaseService {
     if (error) throw error;
   }
 
+  async resetPasswordForEmail(email: string) {
+    const redirectTo = `${window.location.origin}/update-password`;
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+  }
+
+  async updatePassword(newPassword: string) {
+    const { error } = await this.supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+  }
+
   async getSession() {
     const { data } = await this.supabase.auth.getSession();
     return data.session;

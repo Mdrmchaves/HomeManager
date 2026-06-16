@@ -16,6 +16,7 @@ import {
   SupportedCurrency,
 } from '../../../../core/models/finance-budget.model';
 import { FinanceAccount } from '../../../../core/models/finance-account.model';
+import { FinanceTransaction } from '../../../../core/models/finance-transaction.model';
 import { TransactionFormModalComponent } from '../transaction-form-modal/transaction-form-modal';
 
 const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
@@ -67,6 +68,14 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
               · {{ excludedCount() }} excluído{{ excludedCount() !== 1 ? 's' : '' }} do total
             }
           </p>
+        </div>
+      }
+
+      <!-- Error banner -->
+      @if (error()) {
+        <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {{ error() }}
+          <button (click)="error.set('')" class="ml-3 text-red-400 hover:text-red-600 shrink-0">✕</button>
         </div>
       }
 
@@ -181,7 +190,8 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
                   <!-- Registar pagamento (only for unpaid items) -->
                   @if (!item.paidThisMonth) {
                     <button (click)="startPay(item)" title="Registar pagamento"
-                      class="p-1.5 rounded-lg text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors">
+                      [disabled]="deletingItemId() !== null || saving()"
+                      class="p-1.5 rounded-lg text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                       </svg>
@@ -220,16 +230,25 @@ const CATEGORIES: FinanceCategory[] = ['lf', 'cf', 'co', 'mt', 'pr', 'es'];
                     </button>
                   }
                   <button (click)="startEdit(item)"
-                    class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors">
+                    [disabled]="deletingItemId() !== null || saving()"
+                    class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                     </svg>
                   </button>
                   <button (click)="deleteItem(item.id)"
-                    class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
+                    [disabled]="deletingItemId() !== null || saving()"
+                    class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    @if (deletingItemId() === item.id) {
+                      <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                    } @else {
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    }
                   </button>
                 </div>
               </div>
@@ -386,6 +405,8 @@ export class PlanningTabComponent implements OnChanges {
   displayCurrency = signal<SupportedCurrency>('BRL');
   showPayModal = signal(false);
   payingItem = signal<FinancePlanningItem | null>(null);
+  deletingItemId = signal<string | null>(null);
+  error = signal('');
 
   readonly categories = CATEGORIES;
   readonly currencies = [...SUPPORTED_CURRENCIES] as SupportedCurrency[];
@@ -520,10 +541,10 @@ export class PlanningTabComponent implements OnChanges {
     this.showPayModal.set(true);
   }
 
-  onPayModalClosed(saved: boolean): void {
+  onPayModalClosed(result: FinanceTransaction | false): void {
     this.showPayModal.set(false);
     this.payingItem.set(null);
-    if (saved) {
+    if (result) {
       this.load();
       this.loadCcAccounts();
     }
@@ -613,22 +634,26 @@ export class PlanningTabComponent implements OnChanges {
 
   async deleteItem(id: string): Promise<void> {
     if (!confirm('Remover este compromisso?')) return;
+    this.deletingItemId.set(id);
     try {
       await firstValueFrom(this.financeService.deletePlanningItem(id));
       await this.load();
     } catch {
-      // ignore
+      this.error.set('Erro ao remover compromisso. Tenta novamente.');
+    } finally {
+      this.deletingItemId.set(null);
     }
   }
 
   private async load(): Promise<void> {
     if (!this.householdId) return;
     this.loading.set(true);
+    this.error.set('');
     try {
       const data = await firstValueFrom(this.financeService.getPlanningItems(this.householdId, this.month));
       this.items.set(data);
     } catch {
-      // ignore
+      this.error.set('Erro ao carregar compromissos. Tenta novamente.');
     } finally {
       this.loading.set(false);
     }

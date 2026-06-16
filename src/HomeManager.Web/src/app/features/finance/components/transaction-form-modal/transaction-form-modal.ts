@@ -228,7 +228,7 @@ export class TransactionFormModalComponent implements OnInit {
   @Input({ required: true }) month!: string;
   @Input() transaction: FinanceTransaction | null = null;
   @Input() prefillPlanningItem?: { id: string; description: string; amount: number; currency: string; category?: string };
-  @Output() closed = new EventEmitter<boolean>();
+  @Output() closed = new EventEmitter<FinanceTransaction | false>();
 
   private financeService = inject(FinanceService);
   private financeState = inject(FinanceStateService);
@@ -324,7 +324,7 @@ export class TransactionFormModalComponent implements OnInit {
   }
 
   cancel(): void {
-    this.closed.emit(false);
+    this.closed.emit(false as false);
   }
 
   setType(type: string): void {
@@ -415,10 +415,11 @@ export class TransactionFormModalComponent implements OnInit {
     const isTransfer = v.type === 'transfer';
 
     try {
+      let saved: FinanceTransaction;
       if (this.transaction) {
         const hadPlanningItem = this.transaction.planningItemId;
         const newPlanningItemId = v.planningItemId ?? undefined;
-        await firstValueFrom(this.financeService.updateTransaction(this.transaction.id, {
+        saved = await firstValueFrom(this.financeService.updateTransaction(this.transaction.id, {
           accountId: v.accountId ?? undefined,
           description: v.description!,
           amount: v.amount!,
@@ -433,7 +434,7 @@ export class TransactionFormModalComponent implements OnInit {
           clearPlanningItemId: !newPlanningItemId && !!hadPlanningItem,
         }));
       } else {
-        await firstValueFrom(this.financeService.createTransaction({
+        saved = await firstValueFrom(this.financeService.createTransaction({
           householdId: this.householdId,
           accountId: v.accountId ?? undefined,
           description: v.description!,
@@ -448,7 +449,7 @@ export class TransactionFormModalComponent implements OnInit {
           planningItemId: v.planningItemId ?? undefined,
         }));
       }
-      this.closed.emit(true);
+      this.closed.emit(saved);
     } catch {
       this.error.set('Erro ao guardar transação. Tenta novamente.');
     } finally {

@@ -22,11 +22,19 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
       <!-- Header -->
       <div class="flex items-center justify-between">
         <h2 class="text-sm font-semibold text-stone-700">Transações</h2>
-        <button type="button" (click)="openModal(null)"
-          class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
+        <button type="button" (click)="openModal(null)" [disabled]="loading()"
+          class="px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           + Nova Transação
         </button>
       </div>
+
+      <!-- Error banner -->
+      @if (error()) {
+        <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {{ error() }}
+          <button (click)="error.set('')" class="ml-3 text-red-400 hover:text-red-600 shrink-0">✕</button>
+        </div>
+      }
 
       <!-- Filter panel -->
       <div class="bg-white rounded-xl border border-stone-200 p-4 space-y-3">
@@ -42,7 +50,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
         <div class="flex flex-wrap gap-2">
           @for (opt of typeOptions; track opt.value) {
             <button type="button"
-              (click)="setFilterType(opt.value)"
+              (click)="filterType.set(opt.value)"
               class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
               [class.bg-stone-800]="filterType() === opt.value"
               [class.text-white]="filterType() === opt.value"
@@ -57,7 +65,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
         <!-- Account dropdown -->
         <select class="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500"
           [value]="filterAccount()"
-          (change)="setFilterAccount($any($event.target).value)">
+          (change)="filterAccount.set($any($event.target).value)">
           <option value="">Todas as contas</option>
           @for (acc of accounts(); track acc.id) {
             <option [value]="acc.id">{{ acc.name }}</option>
@@ -68,7 +76,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
         @if (filterType() !== 'income' && filterType() !== 'transfer') {
           <div class="flex flex-wrap gap-2">
             <button type="button"
-              (click)="setFilterCategory('')"
+              (click)="filterCategory.set('')"
               class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
               [class.bg-stone-800]="filterCategory() === ''"
               [class.text-white]="filterCategory() === ''"
@@ -79,7 +87,7 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
             </button>
             @for (cat of categories; track cat) {
               <button type="button"
-                (click)="setFilterCategory(cat)"
+                (click)="filterCategory.set(cat)"
                 class="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
                 [class]="filterCategory() === cat ? categoryColorActive(cat) : 'border-stone-200 text-stone-500'">
                 {{ categoryLabel(cat) }}
@@ -135,7 +143,8 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
               }
               <!-- Edit -->
               <button (click)="openModal(tx)"
-                class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors"
+                [disabled]="deletingId() !== null"
+                class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Editar">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -143,11 +152,19 @@ const CATEGORY_COLOR = (cat: string) => CATEGORY_COLORS[cat as FinanceCategory] 
               </button>
               <!-- Delete -->
               <button (click)="deleteTransaction(tx.id)"
-                class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                [disabled]="deletingId() !== null"
+                class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title="Apagar">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
+                @if (deletingId() === tx.id) {
+                  <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                }
               </button>
             </div>
           }
@@ -191,27 +208,34 @@ export class TransactionsTabComponent implements OnChanges {
   private financeState = inject(FinanceStateService);
 
   loading = signal(false);
+  error = signal('');
+  deletingId = signal<string | null>(null);
   pagedData = signal<PagedResponse<FinanceTransaction> | null>(null);
   transactions = computed(() => this.pagedData()?.items ?? []);
 
-  // Use shared state — no independent HTTP call needed
   accounts = this.financeState.accounts;
 
-  // Modal
   showModal = signal(false);
   modalTx = signal<FinanceTransaction | null>(null);
   confirmDeleteId = signal<string | null>(null);
 
-  // Filters
   filterAccount = signal('');
   filterType = signal('');
   filterCategory = signal('');
   searchText = signal('');
 
+  // All filtering is client-side — no HTTP call on filter change
   filteredTransactions = computed(() => {
+    let list = this.transactions();
+    const type = this.filterType();
+    const account = this.filterAccount();
+    const category = this.filterCategory();
     const q = this.searchText().toLowerCase().trim();
-    if (!q) return this.transactions();
-    return this.transactions().filter(tx => tx.description.toLowerCase().includes(q));
+    if (type) list = list.filter(tx => tx.type === type);
+    if (account) list = list.filter(tx => tx.accountId === account || tx.toAccountId === account);
+    if (category) list = list.filter(tx => tx.category === category);
+    if (q) list = list.filter(tx => tx.description.toLowerCase().includes(q));
+    return list;
   });
 
   readonly categories = CATEGORIES;
@@ -244,29 +268,17 @@ export class TransactionsTabComponent implements OnChanges {
     this.showModal.set(true);
   }
 
-  onModalClosed(saved: boolean): void {
+  onModalClosed(result: FinanceTransaction | false): void {
+    const wasEditing = !!this.modalTx();
     this.showModal.set(false);
     this.modalTx.set(null);
-    if (saved) {
-      this.load();
-      this.financeState.markAccountsDirty();
+    if (!result) return;
+    if (wasEditing) {
+      this.pagedData.update(d => d ? { ...d, items: d.items.map(t => t.id === result.id ? result : t) } : d);
+    } else {
+      this.pagedData.update(d => d ? { ...d, items: [result, ...d.items], total: (d.total ?? 0) + 1 } : d);
     }
-  }
-
-  setFilterType(value: string): void {
-    this.filterType.set(value);
-    if (value !== 'expense') this.filterCategory.set('');
-    this.load();
-  }
-
-  setFilterAccount(value: string): void {
-    this.filterAccount.set(value);
-    this.load();
-  }
-
-  setFilterCategory(value: string): void {
-    this.filterCategory.set(value);
-    this.load();
+    this.financeState.markAccountsDirty();
   }
 
   deleteTransaction(id: string): void {
@@ -277,31 +289,34 @@ export class TransactionsTabComponent implements OnChanges {
     const id = this.confirmDeleteId();
     this.confirmDeleteId.set(null);
     if (!id) return;
+    this.deletingId.set(id);
+    // Optimistic remove
+    this.pagedData.update(d => d ? { ...d, items: d.items.filter(t => t.id !== id), total: Math.max(0, (d.total ?? 1) - 1) } : d);
     try {
       await firstValueFrom(this.financeService.deleteTransaction(id));
-      this.load();
       this.financeState.markAccountsDirty();
     } catch {
-      // ignore
+      this.error.set('Erro ao apagar transação. Tenta novamente.');
+      await this.load();
+    } finally {
+      this.deletingId.set(null);
     }
   }
 
   private async load(): Promise<void> {
     if (!this.householdId) return;
     this.loading.set(true);
+    this.error.set('');
     try {
       const data = await firstValueFrom(
         this.financeService.getTransactions(this.householdId, {
           month: this.month,
-          accountId: this.filterAccount() || undefined,
-          type: this.filterType() || undefined,
-          category: this.filterCategory() || undefined,
           pageSize: 100,
         })
       );
       this.pagedData.set(data);
     } catch {
-      // ignore
+      this.error.set('Erro ao carregar transações. Tenta novamente.');
     } finally {
       this.loading.set(false);
     }

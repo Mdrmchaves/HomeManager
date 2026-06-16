@@ -36,6 +36,14 @@ interface ConfirmState {
         </button>
       </div>
 
+      <!-- Error banner -->
+      @if (error()) {
+        <div class="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {{ error() }}
+          <button (click)="error.set('')" class="ml-3 text-red-400 hover:text-red-600 shrink-0">✕</button>
+        </div>
+      }
+
       <!-- Grid of account cards -->
       @if (loading()) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -154,15 +162,24 @@ interface ConfirmState {
               <div class="border-t border-stone-100 px-4 py-2.5 flex items-center justify-end gap-1">
                 <!-- Recalculate -->
                 <button (click)="recalculate(acc)"
-                  class="p-1.5 rounded-lg text-stone-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  [disabled]="busyAccountId() === acc.id"
+                  class="p-1.5 rounded-lg text-stone-400 hover:bg-blue-50 hover:text-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Recalcular saldo a partir das transações">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                  </svg>
+                  @if (busyAccountId() === acc.id) {
+                    <svg class="w-4 h-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                    </svg>
+                  } @else {
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                  }
                 </button>
                 <!-- Edit -->
                 <button (click)="openModal(acc)"
-                  class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors"
+                  [disabled]="busyAccountId() === acc.id"
+                  class="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Editar">
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -171,7 +188,8 @@ interface ConfirmState {
                 <!-- Deactivate / Reactivate -->
                 @if (acc.isActive) {
                   <button (click)="askToggleActive(acc, false)"
-                    class="p-1.5 rounded-lg text-stone-400 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                    [disabled]="busyAccountId() === acc.id"
+                    class="p-1.5 rounded-lg text-stone-400 hover:bg-amber-50 hover:text-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Desactivar conta">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
@@ -179,7 +197,8 @@ interface ConfirmState {
                   </button>
                 } @else {
                   <button (click)="askToggleActive(acc, true)"
-                    class="p-1.5 rounded-lg text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                    [disabled]="busyAccountId() === acc.id"
+                    class="p-1.5 rounded-lg text-stone-400 hover:bg-emerald-50 hover:text-emerald-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     title="Reactivar conta">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -189,7 +208,8 @@ interface ConfirmState {
                 }
                 <!-- Delete -->
                 <button (click)="askDelete(acc.id)"
-                  class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  [disabled]="busyAccountId() === acc.id"
+                  class="p-1.5 rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Apagar">
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -232,6 +252,8 @@ export class AccountsTabComponent implements OnChanges {
   private financeState = inject(FinanceStateService);
 
   loading = signal(false);
+  error = signal('');
+  busyAccountId = signal<string | null>(null);
   accounts = signal<FinanceAccount[]>([]);
   showModal = signal(false);
   modalAccount = signal<FinanceAccount | null>(null);
@@ -266,9 +288,7 @@ export class AccountsTabComponent implements OnChanges {
   async onModalClosed(saved: boolean): Promise<void> {
     this.showModal.set(false);
     this.modalAccount.set(null);
-    if (saved) {
-      await Promise.all([this.load(), this.financeState.refreshAccounts()]);
-    }
+    if (saved) await this.load();
   }
 
   async onConfirmed(): Promise<void> {
@@ -286,8 +306,15 @@ export class AccountsTabComponent implements OnChanges {
       confirmLabel: isActive ? 'Reactivar' : 'Desactivar',
       destructive: !isActive,
       onConfirm: async () => {
-        await firstValueFrom(this.financeService.updateAccount(acc.id, { isActive }));
-        await Promise.all([this.load(), this.financeState.refreshAccounts()]);
+        this.busyAccountId.set(acc.id);
+        try {
+          await firstValueFrom(this.financeService.updateAccount(acc.id, { isActive }));
+          await this.load();
+        } catch {
+          this.error.set('Erro ao actualizar conta. Tenta novamente.');
+        } finally {
+          this.busyAccountId.set(null);
+        }
       },
     });
   }
@@ -300,31 +327,45 @@ export class AccountsTabComponent implements OnChanges {
       confirmLabel: 'Apagar',
       destructive: true,
       onConfirm: async () => {
-        await firstValueFrom(this.financeService.deleteAccount(id));
-        await Promise.all([this.load(), this.financeState.refreshAccounts()]);
+        this.busyAccountId.set(id);
+        try {
+          await firstValueFrom(this.financeService.deleteAccount(id));
+          await this.load();
+        } catch {
+          this.error.set('Erro ao apagar conta. Tenta novamente.');
+        } finally {
+          this.busyAccountId.set(null);
+        }
       },
     });
   }
 
   async recalculate(acc: FinanceAccount): Promise<void> {
+    this.busyAccountId.set(acc.id);
     try {
       const updated = await firstValueFrom(this.financeService.recalculateAccount(acc.id));
       this.accounts.update(list => list.map(a => a.id === acc.id ? { ...a, balance: updated.balance } : a));
+      this.financeState.accounts.update(list => list.map(a => a.id === acc.id ? { ...a, balance: updated.balance } : a));
     } catch {
-      // ignore
+      this.error.set('Erro ao recalcular saldo. Tenta novamente.');
+    } finally {
+      this.busyAccountId.set(null);
     }
   }
 
   private async load(): Promise<void> {
     if (!this.householdId) return;
     this.loading.set(true);
+    this.error.set('');
     try {
       const data = await firstValueFrom(
         this.financeService.getAccounts(this.householdId, this.month, true)
       );
       this.accounts.set(data);
+      // P5: sync shared state without a 2nd HTTP call
+      this.financeState.accounts.set(data.filter(a => a.isActive));
     } catch {
-      // ignore
+      this.error.set('Erro ao carregar contas. Tenta novamente.');
     } finally {
       this.loading.set(false);
     }

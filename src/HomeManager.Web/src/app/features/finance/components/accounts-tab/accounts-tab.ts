@@ -251,10 +251,10 @@ export class AccountsTabComponent implements OnChanges {
   private financeService = inject(FinanceService);
   private financeState = inject(FinanceStateService);
 
-  loading = signal(false);
+  readonly loading = this.financeState.accountsLoading;
   error = signal('');
   busyAccountId = signal<string | null>(null);
-  accounts = signal<FinanceAccount[]>([]);
+  readonly accounts = this.financeState.accounts;
   showModal = signal(false);
   modalAccount = signal<FinanceAccount | null>(null);
   confirmState = signal<ConfirmState | null>(null);
@@ -275,8 +275,8 @@ export class AccountsTabComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['householdId'] || changes['month']) {
-      this.load();
-      this.financeState.refreshIfDirty(); // sync shared cache if transactions were mutated
+      this.error.set('');
+      this.financeState.refreshIfDirty();
     }
   }
 
@@ -288,7 +288,7 @@ export class AccountsTabComponent implements OnChanges {
   async onModalClosed(saved: boolean): Promise<void> {
     this.showModal.set(false);
     this.modalAccount.set(null);
-    if (saved) await this.load();
+    if (saved) await this.financeState.reloadAccounts();
   }
 
   async onConfirmed(): Promise<void> {
@@ -309,7 +309,7 @@ export class AccountsTabComponent implements OnChanges {
         this.busyAccountId.set(acc.id);
         try {
           await firstValueFrom(this.financeService.updateAccount(acc.id, { isActive }));
-          await this.load();
+          await this.financeState.reloadAccounts();
         } catch {
           this.error.set('Erro ao actualizar conta. Tenta novamente.');
         } finally {
@@ -330,7 +330,7 @@ export class AccountsTabComponent implements OnChanges {
         this.busyAccountId.set(id);
         try {
           await firstValueFrom(this.financeService.deleteAccount(id));
-          await this.load();
+          await this.financeState.reloadAccounts();
         } catch {
           this.error.set('Erro ao apagar conta. Tenta novamente.');
         } finally {
@@ -344,7 +344,6 @@ export class AccountsTabComponent implements OnChanges {
     this.busyAccountId.set(acc.id);
     try {
       const updated = await firstValueFrom(this.financeService.recalculateAccount(acc.id));
-      this.accounts.update(list => list.map(a => a.id === acc.id ? { ...a, balance: updated.balance } : a));
       this.financeState.accounts.update(list => list.map(a => a.id === acc.id ? { ...a, balance: updated.balance } : a));
     } catch {
       this.error.set('Erro ao recalcular saldo. Tenta novamente.');
@@ -353,21 +352,4 @@ export class AccountsTabComponent implements OnChanges {
     }
   }
 
-  private async load(): Promise<void> {
-    if (!this.householdId) return;
-    this.loading.set(true);
-    this.error.set('');
-    try {
-      const data = await firstValueFrom(
-        this.financeService.getAccounts(this.householdId, this.month, true)
-      );
-      this.accounts.set(data);
-      // P5: sync shared state without a 2nd HTTP call
-      this.financeState.accounts.set(data.filter(a => a.isActive));
-    } catch {
-      this.error.set('Erro ao carregar contas. Tenta novamente.');
-    } finally {
-      this.loading.set(false);
-    }
-  }
 }

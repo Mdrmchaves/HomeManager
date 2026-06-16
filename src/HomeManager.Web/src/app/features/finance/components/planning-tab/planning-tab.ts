@@ -393,10 +393,10 @@ export class PlanningTabComponent implements OnChanges {
   financeState = inject(FinanceStateService);
   private fb = inject(FormBuilder);
 
-  loading = signal(false);
+  readonly loading = this.financeState.planningLoading;
   saving = signal(false);
-  items = signal<FinancePlanningItem[]>([]);
-  ccAccounts = signal<FinanceAccount[]>([]);
+  readonly items = this.financeState.planningItems;
+  readonly ccAccounts = computed(() => this.financeState.accounts().filter(a => a.type === 'cc' && a.isActive));
   excludedCcIds = signal<Set<string>>(new Set());
   excludedItemIds = signal<Set<string>>(new Set());
   manualCcIncludeIds = signal<Set<string>>(new Set());
@@ -495,11 +495,7 @@ export class PlanningTabComponent implements OnChanges {
       this.excludedItemIds.set(new Set(storedItems ? JSON.parse(storedItems) : []));
       const storedCcInclude = localStorage.getItem(`hm_planning_cc_include_${this.householdId}`);
       this.manualCcIncludeIds.set(new Set(storedCcInclude ? JSON.parse(storedCcInclude) : []));
-      this.load();
-      this.loadCcAccounts();
-    } else if (changes['month']) {
-      this.loadCcAccounts();
-      this.load();
+      this.error.set('');
     }
   }
 
@@ -545,8 +541,11 @@ export class PlanningTabComponent implements OnChanges {
     this.showPayModal.set(false);
     this.payingItem.set(null);
     if (result) {
-      this.load();
-      this.loadCcAccounts();
+      // paidThisMonth changed server-side — must reload (can't compute client-side)
+      void this.financeState.reloadPlanningItems();
+      void this.financeState.reloadAccounts();
+      this.financeState.addTransaction(result);
+      this.financeState.markAccountsDirty();
     }
   }
 
@@ -599,7 +598,7 @@ export class PlanningTabComponent implements OnChanges {
     this.saving.set(true);
     try {
       if (this.editingId()) {
-        await firstValueFrom(this.financeService.updatePlanningItem(this.editingId()!, {
+        const updated = await firstValueFrom(this.financeService.updatePlanningItem(this.editingId()!, {
           description: v.description!,
           amount: v.amount!,
           currency: v.currency!,
@@ -610,8 +609,9 @@ export class PlanningTabComponent implements OnChanges {
           installmentsPaid: v.type === 'installment' ? (v.installmentsPaid ?? 0) : 0,
           isActive: true,
         }));
+        this.financeState.patchPlanningItem(updated);
       } else {
-        await firstValueFrom(this.financeService.createPlanningItem({
+        const created = await firstValueFrom(this.financeService.createPlanningItem({
           householdId: this.householdId,
           description: v.description!,
           amount: v.amount!,
@@ -622,11 +622,11 @@ export class PlanningTabComponent implements OnChanges {
           totalInstallments: v.type === 'installment' ? (v.totalInstallments ?? undefined) : undefined,
           installmentsPaid: v.type === 'installment' ? (v.installmentsPaid ?? 0) : undefined,
         }));
+        this.financeState.addPlanningItem(created);
       }
       this.closeForm();
-      await this.load();
     } catch {
-      // ignore
+      this.error.set('Erro ao guardar compromisso. Tenta novamente.');
     } finally {
       this.saving.set(false);
     }
@@ -637,37 +637,11 @@ export class PlanningTabComponent implements OnChanges {
     this.deletingItemId.set(id);
     try {
       await firstValueFrom(this.financeService.deletePlanningItem(id));
-      await this.load();
+      this.financeState.removePlanningItem(id);
     } catch {
       this.error.set('Erro ao remover compromisso. Tenta novamente.');
     } finally {
       this.deletingItemId.set(null);
-    }
-  }
-
-  private async load(): Promise<void> {
-    if (!this.householdId) return;
-    this.loading.set(true);
-    this.error.set('');
-    try {
-      const data = await firstValueFrom(this.financeService.getPlanningItems(this.householdId, this.month));
-      this.items.set(data);
-    } catch {
-      this.error.set('Erro ao carregar compromissos. Tenta novamente.');
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  private async loadCcAccounts(): Promise<void> {
-    if (!this.householdId || !this.month) return;
-    try {
-      const accounts = await firstValueFrom(
-        this.financeService.getAccounts(this.householdId, this.month)
-      );
-      this.ccAccounts.set(accounts.filter(a => a.type === 'cc' && a.isActive));
-    } catch {
-      // ignore
     }
   }
 }

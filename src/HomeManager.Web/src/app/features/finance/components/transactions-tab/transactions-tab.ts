@@ -3,7 +3,7 @@ import { DecimalPipe, DatePipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
 import { FinanceService } from '../../../../core/services/finance.service';
 import { FinanceStateService } from '../../../../core/services/finance-state.service';
-import { FinanceTransaction, PagedResponse } from '../../../../core/models/finance-transaction.model';
+import { FinanceTransaction } from '../../../../core/models/finance-transaction.model';
 import { CATEGORY_LABELS, CATEGORY_COLORS, FinanceCategory } from '../../../../core/models/finance-budget.model';
 import { TransactionFormModalComponent } from '../transaction-form-modal/transaction-form-modal';
 import { ConfirmModalComponent } from '../../../../shared/components/confirm-modal/confirm-modal';
@@ -207,13 +207,12 @@ export class TransactionsTabComponent implements OnChanges {
   private financeService = inject(FinanceService);
   private financeState = inject(FinanceStateService);
 
-  loading = signal(false);
+  readonly loading = this.financeState.transactionsLoading;
   error = signal('');
   deletingId = signal<string | null>(null);
-  pagedData = signal<PagedResponse<FinanceTransaction> | null>(null);
-  transactions = computed(() => this.pagedData()?.items ?? []);
 
-  accounts = this.financeState.accounts;
+  readonly transactions = this.financeState.transactions;
+  readonly accounts    = this.financeState.accounts;
 
   showModal = signal(false);
   modalTx = signal<FinanceTransaction | null>(null);
@@ -259,7 +258,7 @@ export class TransactionsTabComponent implements OnChanges {
       this.filterType.set('');
       this.filterCategory.set('');
       this.searchText.set('');
-      this.load();
+      this.error.set('');
     }
   }
 
@@ -274,9 +273,9 @@ export class TransactionsTabComponent implements OnChanges {
     this.modalTx.set(null);
     if (!result) return;
     if (wasEditing) {
-      this.pagedData.update(d => d ? { ...d, items: d.items.map(t => t.id === result.id ? result : t) } : d);
+      this.financeState.patchTransaction(result);
     } else {
-      this.pagedData.update(d => d ? { ...d, items: [result, ...d.items], total: (d.total ?? 0) + 1 } : d);
+      this.financeState.addTransaction(result);
     }
     this.financeState.markAccountsDirty();
   }
@@ -291,34 +290,16 @@ export class TransactionsTabComponent implements OnChanges {
     if (!id) return;
     this.deletingId.set(id);
     // Optimistic remove
-    this.pagedData.update(d => d ? { ...d, items: d.items.filter(t => t.id !== id), total: Math.max(0, (d.total ?? 1) - 1) } : d);
+    this.financeState.removeTransaction(id);
     try {
       await firstValueFrom(this.financeService.deleteTransaction(id));
       this.financeState.markAccountsDirty();
     } catch {
       this.error.set('Erro ao apagar transação. Tenta novamente.');
-      await this.load();
+      // Revert: trigger store reload
+      this.financeState.markAccountsDirty();
     } finally {
       this.deletingId.set(null);
-    }
-  }
-
-  private async load(): Promise<void> {
-    if (!this.householdId) return;
-    this.loading.set(true);
-    this.error.set('');
-    try {
-      const data = await firstValueFrom(
-        this.financeService.getTransactions(this.householdId, {
-          month: this.month,
-          pageSize: 100,
-        })
-      );
-      this.pagedData.set(data);
-    } catch {
-      this.error.set('Erro ao carregar transações. Tenta novamente.');
-    } finally {
-      this.loading.set(false);
     }
   }
 }

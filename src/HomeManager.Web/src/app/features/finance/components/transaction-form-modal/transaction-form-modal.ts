@@ -237,11 +237,11 @@ export class TransactionFormModalComponent implements OnInit {
   saving = signal(false);
   error = signal('');
   exchangeRateHint = signal('');
-  planningItems = signal<FinancePlanningItem[]>([]);
 
-  // Read from shared state — no independent HTTP call
-  accounts = this.financeState.accounts;
-  rates = this.financeState.rates;
+  // Read from store — no HTTP calls on modal open
+  readonly planningItems = this.financeState.planningItems;
+  readonly accounts = computed(() => this.financeState.accounts().filter(a => a.isActive));
+  readonly rates = this.financeState.rates;
 
   readonly categories = CATEGORIES;
   readonly currencies = SUPPORTED_CURRENCIES;
@@ -284,16 +284,8 @@ export class TransactionFormModalComponent implements OnInit {
     return id ? (this.accounts().find(a => a.id === id)?.currency ?? '') : '';
   });
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
     this.form.patchValue({ refMonth: this.month });
-
-    // Load planning items for the selector
-    try {
-      const items = await firstValueFrom(this.financeService.getPlanningItems(this.householdId));
-      this.planningItems.set(items);
-    } catch {
-      // non-critical — selector just won't show
-    }
 
     if (this.transaction) {
       const tx = this.transaction;

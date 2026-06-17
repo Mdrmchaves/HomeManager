@@ -77,4 +77,11 @@ public class HouseholdController : ControllerBase
     {
         return Ok(await m_householdService.UpdateSettingsAsync(id, request, GetUserId()));
     }
+
+    // DELETE: api/household/{id}
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteHousehold(Guid id)
+    {
+        return Ok(await m_householdService.DeleteHouseholdAsync(id, GetUserId()));
+    }
 }

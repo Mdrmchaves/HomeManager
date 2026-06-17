@@ -16,4 +16,6 @@ public interface IHouseholdService
     Task<ApiResponse<Household>> JoinHouseholdAsync(string inviteCode, Guid userId);
 
     Task<ApiResponse<Household>> UpdateSettingsAsync(Guid id, UpdateHouseholdSettingsRequest request, Guid userId);
+
+    Task<ApiResponse<bool>> DeleteHouseholdAsync(Guid id, Guid userId);
 }

@@ -191,6 +191,9 @@ public class HouseholdService : IHouseholdService
             if (household is null)
                 return ApiResponse<Household>.ErrorResponse("Household not found");
 
+            if (!string.IsNullOrWhiteSpace(request.Name))
+                household.Name = request.Name.Trim();
+
             if (!string.IsNullOrWhiteSpace(request.DefaultCurrency))
                 household.DefaultCurrency = request.DefaultCurrency.ToUpperInvariant();
 
@@ -204,6 +207,37 @@ public class HouseholdService : IHouseholdService
         {
             _logger.LogError(ex, "Error updating settings for household {HouseholdId}", id);
             return ApiResponse<Household>.ErrorResponse($"Error: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<bool>> DeleteHouseholdAsync(Guid id, Guid userId)
+    {
+        _logger.LogInformation("Deleting household {HouseholdId} by user {UserId}", id, userId);
+        try
+        {
+            var membership = await _context.HouseholdUsers
+                .FirstOrDefaultAsync(hu => hu.HouseholdId == id && hu.UserId == userId);
+
+            if (membership is null)
+                return ApiResponse<bool>.ErrorResponse("Access denied");
+
+            if (membership.Role != "owner")
+                return ApiResponse<bool>.ErrorResponse("Apenas o proprietário pode eliminar a casa");
+
+            var household = await _context.Households.FindAsync(id);
+            if (household is null)
+                return ApiResponse<bool>.ErrorResponse("Household not found");
+
+            _context.Households.Remove(household);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Household {HouseholdId} deleted by owner {UserId}", id, userId);
+            return ApiResponse<bool>.SuccessResponse(true, "Household deleted");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting household {HouseholdId}", id);
+            return ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}");
         }
     }
 

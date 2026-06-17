@@ -2,6 +2,7 @@ using HomeManager.API.Models.Finance;
 using HomeManager.API.Models.Inventory;
 using HomeManager.API.Models.Shared;
 using Microsoft.EntityFrameworkCore;
+using TaskEntity = HomeManager.API.Models.Tasks.Task;
 
 namespace HomeManager.API.Data;
 
@@ -21,6 +22,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<Location> Locations { get; set; }
     public DbSet<Category> Categories { get; set; }
     public DbSet<PantryItem> PantryItems { get; set; }
+
+    // Tasks
+    public DbSet<TaskEntity> Tasks { get; set; }
 
     // Finance
     public DbSet<FinanceAccount> FinanceAccounts { get; set; }
@@ -109,6 +113,30 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(p => p.CategoryId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Tasks ────────────────────────────────────────────────────────
+        modelBuilder.Entity<TaskEntity>(b =>
+        {
+            b.HasOne(t => t.Household)
+                .WithMany()
+                .HasForeignKey(t => t.HouseholdId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(t => t.Assignee)
+                .WithMany()
+                .HasForeignKey(t => t.AssigneeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(t => t.CompletedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.CompletedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(t => t.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(t => t.CreatedBy)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // ── Finance ──────────────────────────────────────────────────────
         // FinanceAccount

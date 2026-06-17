@@ -8,7 +8,7 @@
 
 ## Visão Geral
 
-Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **Despensa** (consumíveis), **Finance** (contas, transações, orçamento, câmbio), Dashboard, Tasks (stub).
+Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **Despensa** (consumíveis), **Finance** (contas, transações, orçamento, câmbio), **Tasks** (CRUD + complete/reopen), Dashboard.
 
 **Clientes:**
 - **Primário**: HomeManager.Mobile (repo separado, React Native) — prioridade máxima de compatibilidade
@@ -21,15 +21,15 @@ Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **D
 | Camada | Escolha |
 |--------|---------|
 | Backend | .NET 10, ASP.NET Core, EF Core 9, Npgsql **9.0.4** (pinned), FluentValidation 12, Serilog |
-| Database | PostgreSQL via Supabase — schemas: `shared`, `inventory`, `finance` |
+| Database | PostgreSQL via Supabase — schemas: `shared`, `inventory`, `finance`, `tasks` |
 | Auth | Supabase JWT validado pelo .NET via OIDC JWKS |
 | Frontend Web | Angular 21 standalone, Tailwind CSS v4, `@supabase/supabase-js` v2.95.3 |
 
 ---
 
-## Estado Actual (2026-04-25)
+## Estado Actual (2026-06-17)
 
-**Funcional end-to-end**: Auth, Households, Pertences CRUD + resolve/restore (só backend), Locations CRUD, Finance completo (contas, transações, templates, orçamento, câmbio, dashboard calculado).
+**Funcional end-to-end**: Auth, Households, Pertences CRUD + resolve/restore (só backend), Locations CRUD, Finance completo (contas, transações, templates, orçamento, câmbio, dashboard calculado), Tasks CRUD + complete/reopen.
 
 **Bugs/Gaps activos:**
 
@@ -68,6 +68,8 @@ Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **D
 - **`tags`** armazenado como JSONB string (array stringificado `'["a","b"]'`) — não é sistema de FK.
 - **Hungarian notation**: campos privados de instância usam prefixo `m_` (ex: `m_householdService`). Services antigos usam `_` — é tech debt, não corrigir em passant.
 - **`HouseholdService.GetMyHouseholds(Guid.Empty, userId)`** — primeiro argumento é morto, o serviço ignora-o.
+- **`Models.Tasks.Task` vs `System.Threading.Tasks.Task`** — clash de nomes. Resolvido com `using TaskEntity = HomeManager.API.Models.Tasks.Task;` em `ApplicationDbContext`, `TaskService`, e qualquer ficheiro que importe ambos.
+- **Tasks ordering**: overdue (due_date < now) → futuros (due_date >= now) → sem prazo (null). Implementado com `OrderBy(CASE)` + `ThenBy(due_date)` + `ThenByDescending(created_at)`.
 
 ---
 
@@ -99,6 +101,39 @@ npm install && npm start
 
 **Env vars produção (backend)**: `DATABASE_URL`, `SUPABASE_URL`, `PORT`
 **Env vars produção (frontend/Vercel)**: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `API_URL`
+
+---
+
+## Schema `tasks`
+
+### `tasks.tasks`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| household_id | UUID FK | → shared.households.id ON DELETE CASCADE |
+| title | varchar(255) | Required |
+| description | text | Nullable |
+| assignee_id | UUID FK | → shared.users.id ON DELETE SET NULL |
+| due_date | timestamptz | Nullable |
+| status | varchar(20) | `'active'` (default) \| `'completed'` |
+| completed_at | timestamptz | Set ao completar |
+| completed_by | UUID FK | → shared.users.id ON DELETE SET NULL |
+| created_by | UUID FK | → shared.users.id ON DELETE CASCADE |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
+
+### Tasks — /api/tasks [Authorize]
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | /api/tasks | Lista paginada (`?householdId`, `?status`, `?page`, `?pageSize`) — `ApiResponse<PagedResponse<TaskResponse>>` |
+| GET | /api/tasks/{id} | Task única — `ApiResponse<TaskResponse>` |
+| POST | /api/tasks | Criar — 201 + `ApiResponse<TaskResponse>` |
+| PUT | /api/tasks/{id} | Atualizar — `ApiResponse<TaskResponse>` |
+| DELETE | /api/tasks/{id} | Apagar — 204 No Content |
+| POST | /api/tasks/{id}/complete | Completar — `ApiResponse<TaskResponse>` |
+| POST | /api/tasks/{id}/reopen | Reabrir — `ApiResponse<TaskResponse>` |
 
 ---
 

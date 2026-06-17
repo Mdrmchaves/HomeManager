@@ -4,6 +4,7 @@ using FluentValidation.AspNetCore;
 using HomeManager.API.Data;
 using HomeManager.API.Services;
 using HomeManager.API.Services.Finance;
+using HomeManager.API.Services.Tasks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols;
@@ -26,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IInventoryService, InventoryService>();
         services.AddScoped<IFinanceService, FinanceService>();
         services.AddScoped<IPlanningService, PlanningService>();
+        services.AddScoped<ITaskService, TaskService>();
 
         services.AddHttpClient("frankfurter", c =>
         {

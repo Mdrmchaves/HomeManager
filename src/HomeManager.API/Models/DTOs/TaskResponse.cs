@@ -13,6 +13,9 @@ public class TaskResponse
     public DateTime? CompletedAt { get; set; }
     public Guid? CompletedBy { get; set; }
     public string? CompletedByName { get; set; }
+    public Guid? RecurrenceId { get; set; }
+    public string? RecurrencePattern { get; set; }
+    public int? RecurrenceDay { get; set; }
     public Guid CreatedBy { get; set; }
     public string CreatedByName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }

@@ -1,6 +1,7 @@
 using HomeManager.API.Models.Finance;
 using HomeManager.API.Models.Inventory;
 using HomeManager.API.Models.Shared;
+using HomeManager.API.Models.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TaskEntity = HomeManager.API.Models.Tasks.Task;
 
@@ -25,6 +26,7 @@ public class ApplicationDbContext : DbContext
 
     // Tasks
     public DbSet<TaskEntity> Tasks { get; set; }
+    public DbSet<TaskRecurrence> TaskRecurrences { get; set; }
 
     // Finance
     public DbSet<FinanceAccount> FinanceAccounts { get; set; }
@@ -136,6 +138,31 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(t => t.CreatedBy)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(t => t.Recurrence)
+                .WithMany(r => r.Tasks)
+                .HasForeignKey(t => t.RecurrenceId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TaskRecurrence>(b =>
+        {
+            b.HasOne(r => r.Household)
+                .WithMany()
+                .HasForeignKey(r => r.HouseholdId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasOne(r => r.Assignee)
+                .WithMany()
+                .HasForeignKey(r => r.AssigneeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            b.HasOne(r => r.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(r => r.CreatedBy)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            b.HasIndex(r => new { r.HouseholdId, r.Pattern, r.RecurrenceDay, r.IsActive });
         });
 
         // ── Finance ──────────────────────────────────────────────────────

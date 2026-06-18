@@ -31,30 +31,19 @@ public class TaskController : ControllerBase
         return Guid.Parse(userIdClaim);
     }
 
-    // GET: api/tasks?householdId={guid}&status={string}&page={int}&pageSize={int}
+    // GET: api/tasks?householdId={guid}&date={yyyy-MM-dd}
     [HttpGet]
-    public async System.Threading.Tasks.Task<ActionResult<ApiResponse<PagedResponse<TaskResponse>>>> GetTasks(
-        [FromQuery] Guid? householdId = null,
-        [FromQuery] string? status = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 30
+    public async System.Threading.Tasks.Task<ActionResult<ApiResponse<List<TaskResponse>>>> GetTasksByDate(
+        [FromQuery] Guid householdId,
+        [FromQuery] DateOnly date
     )
     {
-        if (!householdId.HasValue)
-            return BadRequest(ApiResponse<PagedResponse<TaskResponse>>.ErrorResponse(
+        if (householdId == Guid.Empty)
+            return BadRequest(ApiResponse<List<TaskResponse>>.ErrorResponse(
                 "O parâmetro householdId é obrigatório"
             ));
 
-        page = Math.Max(page, 1);
-        pageSize = Math.Clamp(pageSize, 1, 50);
-
-        var result = await m_taskService.GetTasksAsync(
-            householdId.Value,
-            GetUserId(),
-            status,
-            page,
-            pageSize
-        );
+        var result = await m_taskService.GetTasksByDateAsync(householdId, GetUserId(), date);
 
         if (!result.Success)
         {
@@ -145,5 +134,32 @@ public class TaskController : ControllerBase
             return NotFound();
 
         return Ok(result);
+    }
+
+    // PUT: api/task-recurrences/{id}
+    [HttpPut("/api/task-recurrences/{id}")]
+    public async System.Threading.Tasks.Task<ActionResult<ApiResponse<TaskRecurrenceResponse>>> UpdateRecurrence(
+        Guid id,
+        UpdateTaskRecurrenceRequest request
+    )
+    {
+        var result = await m_taskService.UpdateRecurrenceAsync(id, request, GetUserId());
+
+        if (!result.Success)
+            return NotFound();
+
+        return Ok(result);
+    }
+
+    // DELETE: api/task-recurrences/{id}
+    [HttpDelete("/api/task-recurrences/{id}")]
+    public async System.Threading.Tasks.Task<IActionResult> DeleteRecurrence(Guid id)
+    {
+        var result = await m_taskService.DeleteRecurrenceAsync(id, GetUserId());
+
+        if (!result.Success)
+            return NotFound();
+
+        return NoContent();
     }
 }

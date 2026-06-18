@@ -44,6 +44,9 @@ public class Task
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("recurrence_id")]
+    public Guid? RecurrenceId { get; set; }
+
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -52,4 +55,5 @@ public class Task
     public User? Assignee { get; set; }
     public User? CompletedByUser { get; set; }
     public User CreatedByUser { get; set; } = null!;
+    public TaskRecurrence? Recurrence { get; set; }
 }

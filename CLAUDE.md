@@ -69,7 +69,8 @@ Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **D
 - **Hungarian notation**: campos privados de instância usam prefixo `m_` (ex: `m_householdService`). Services antigos usam `_` — é tech debt, não corrigir em passant.
 - **`HouseholdService.GetMyHouseholds(Guid.Empty, userId)`** — primeiro argumento é morto, o serviço ignora-o.
 - **`Models.Tasks.Task` vs `System.Threading.Tasks.Task`** — clash de nomes. Resolvido com `using TaskEntity = HomeManager.API.Models.Tasks.Task;` em `ApplicationDbContext`, `TaskService`, e qualquer ficheiro que importe ambos.
-- **Tasks ordering**: overdue (due_date < now) → futuros (due_date >= now) → sem prazo (null). Implementado com `OrderBy(CASE)` + `ThenBy(due_date)` + `ThenByDescending(created_at)`.
+- **Tasks GET é por data**, não paginado. `GET /api/tasks?householdId=&date=YYYY-MM-DD` — o Mobile usa carrossel de dias. Para `date == hoje`: vencidas → do dia → sem prazo → concluídas hoje (ordenação em memória pós-fetch).
+- **Tasks recorrência** — geração lazy no GET (`EnsureRecurrenceInstancesAsync`). `CompleteTask` nunca gera próxima instância; o GET do dia seguinte faz isso. Soft delete de recorrência via `is_active=false`.
 
 ---
 
@@ -112,28 +113,59 @@ npm install && npm start
 |--------|------|-------|
 | id | UUID PK | |
 | household_id | UUID FK | → shared.households.id ON DELETE CASCADE |
+| recurrence_id | UUID FK | → tasks.task_recurrences.id ON DELETE SET NULL, nullable |
 | title | varchar(255) | Required |
 | description | text | Nullable |
-| assignee_id | UUID FK | → shared.users.id ON DELETE SET NULL |
-| due_date | timestamptz | Nullable |
+| assignee_id | UUID FK | → shared.users.id ON DELETE SET NULL, nullable |
+| due_date | timestamptz | Nullable — gravado como meio-dia UTC (12:00Z) do dia alvo |
 | status | varchar(20) | `'active'` (default) \| `'completed'` |
 | completed_at | timestamptz | Set ao completar |
-| completed_by | UUID FK | → shared.users.id ON DELETE SET NULL |
+| completed_by | UUID FK | → shared.users.id ON DELETE SET NULL, nullable |
 | created_by | UUID FK | → shared.users.id ON DELETE CASCADE |
 | created_at | timestamptz | |
 | updated_at | timestamptz | |
 
-### Tasks — /api/tasks [Authorize]
+Índice principal: `(household_id, due_date, status)`
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| GET | /api/tasks | Lista paginada (`?householdId`, `?status`, `?page`, `?pageSize`) — `ApiResponse<PagedResponse<TaskResponse>>` |
-| GET | /api/tasks/{id} | Task única — `ApiResponse<TaskResponse>` |
-| POST | /api/tasks | Criar — 201 + `ApiResponse<TaskResponse>` |
-| PUT | /api/tasks/{id} | Atualizar — `ApiResponse<TaskResponse>` |
-| DELETE | /api/tasks/{id} | Apagar — 204 No Content |
-| POST | /api/tasks/{id}/complete | Completar — `ApiResponse<TaskResponse>` |
-| POST | /api/tasks/{id}/reopen | Reabrir — `ApiResponse<TaskResponse>` |
+### `tasks.task_recurrences`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | UUID PK | |
+| household_id | UUID FK | → shared.households.id ON DELETE CASCADE |
+| assignee_id | UUID FK | → shared.users.id ON DELETE SET NULL, nullable |
+| pattern | varchar(20) | `'daily'` \| `'weekly'` \| `'monthly'` |
+| recurrence_day | int | null=daily \| 1-7=weekly (Dom=1, Sab=7) \| 1-31=monthly |
+| is_active | boolean | default true; soft delete via `is_active=false` |
+| created_by | UUID FK | → shared.users.id ON DELETE CASCADE |
+| created_at | timestamptz | |
+
+### Tasks — /api/tasks e /api/task-recurrences [Authorize]
+
+| Method | Route | Retorno |
+|--------|-------|---------|
+| GET | `/api/tasks?householdId=&date=YYYY-MM-DD` | `ApiResponse<List<TaskResponse>>` |
+| GET | `/api/tasks/{id}` | `ApiResponse<TaskResponse>` |
+| POST | `/api/tasks` | 201 + `ApiResponse<TaskResponse>` |
+| PUT | `/api/tasks/{id}` | `ApiResponse<TaskResponse>` |
+| DELETE | `/api/tasks/{id}` | 204 No Content |
+| POST | `/api/tasks/{id}/complete` | `ApiResponse<TaskResponse>` |
+| POST | `/api/tasks/{id}/reopen` | `ApiResponse<TaskResponse>` |
+| PUT | `/api/task-recurrences/{id}` | `ApiResponse<TaskRecurrenceResponse>` |
+| DELETE | `/api/task-recurrences/{id}` | 204 No Content (soft delete: `is_active=false`) |
+
+**Lógica do GET por data** (`TodayInHouseholdTz` usa UTC-3 fixo):
+- `date < hoje` → só `completed_at` nesse dia, status = `'completed'`
+- `date = hoje` → active (due=hoje + vencidas + sem prazo) + completed hoje + gera recorrências
+- `date > hoje` → active due=date + gera recorrências
+
+**Ordenação para `date == hoje`**: vencidas (rank 0) → do dia (rank 1) → sem prazo (rank 2) → concluídas (rank 3)
+
+**Geração lazy de recorrências**: `EnsureRecurrenceInstancesAsync` — só cria instância se não existir nesse dia. Nunca gera para `date < hoje`. Dívida técnica conhecida: sem locking, dois GETs simultâneos podem gerar duplicados (desprezível para 1-2 utilizadores).
+
+**`due_date` gravado como meio-dia UTC** (`12:00:00Z`) para evitar drift de fuso em conversões ±12h. Comparações por dia usam range `[dayStart, dayEnd)` nunca igualdade exacta.
+
+**Domingo = 1, Sábado = 7** para `recurrence_day` weekly.
 
 ---
 

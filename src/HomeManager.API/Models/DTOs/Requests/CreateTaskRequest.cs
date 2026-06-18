@@ -5,5 +5,7 @@ public record CreateTaskRequest(
     string Title,
     string? Description,
     Guid? AssigneeId,
-    DateTime? DueDate
+    DateTime? DueDate,
+    string? RecurrencePattern,
+    int? RecurrenceDay
 );

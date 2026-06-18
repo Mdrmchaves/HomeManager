@@ -6,12 +6,10 @@ namespace HomeManager.API.Services.Tasks;
 
 public interface ITaskService
 {
-    System.Threading.Tasks.Task<ApiResponse<PagedResponse<TaskResponse>>> GetTasksAsync(
+    System.Threading.Tasks.Task<ApiResponse<List<TaskResponse>>> GetTasksByDateAsync(
         Guid householdId,
         Guid userId,
-        string? status,
-        int page,
-        int pageSize
+        DateOnly date
     );
 
     System.Threading.Tasks.Task<ApiResponse<TaskResponse>> GetTaskAsync(Guid id, Guid userId);
@@ -25,4 +23,12 @@ public interface ITaskService
     System.Threading.Tasks.Task<ApiResponse<TaskResponse>> CompleteTaskAsync(Guid id, Guid userId);
 
     System.Threading.Tasks.Task<ApiResponse<TaskResponse>> ReopenTaskAsync(Guid id, Guid userId);
+
+    System.Threading.Tasks.Task<ApiResponse<TaskRecurrenceResponse>> UpdateRecurrenceAsync(
+        Guid recurrenceId,
+        UpdateTaskRecurrenceRequest request,
+        Guid userId
+    );
+
+    System.Threading.Tasks.Task<ApiResponse<bool>> DeleteRecurrenceAsync(Guid recurrenceId, Guid userId);
 }

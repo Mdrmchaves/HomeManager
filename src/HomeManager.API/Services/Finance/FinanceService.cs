@@ -793,8 +793,8 @@ public class FinanceService : IFinanceService
                 {
                     Id = Guid.NewGuid(),
                     HouseholdId = request.HouseholdId,
-                    Income = request.Income,
-                    IncomeCurrency = request.IncomeCurrency,
+                    Income = request.Income ?? 0m,
+                    IncomeCurrency = request.IncomeCurrency ?? "BRL",
                     Goals = request.Goals,
                     UpdatedAt = DateTime.UtcNow,
                 };
@@ -802,8 +802,6 @@ public class FinanceService : IFinanceService
             }
             else
             {
-                existing.Income = request.Income;
-                existing.IncomeCurrency = request.IncomeCurrency;
                 existing.Goals = request.Goals;
                 existing.UpdatedAt = DateTime.UtcNow;
             }
@@ -937,12 +935,7 @@ public class FinanceService : IFinanceService
                 .Where(tx => tx.Type == "expense")
                 .Sum(tx => ToBase(tx.Amount, tx.Currency, rates));
 
-            // Effective income: use budget income if set, otherwise actual income
-            var effectiveIncome = (budget is not null && budget.Income > 0)
-                ? ToBase(budget.Income, budget.IncomeCurrency, rates)
-                : totalIncome;
-
-            // By category
+            // By category — budget allocations use actual income from transactions
             var byCategory = ValidCategories.Select(cat =>
             {
                 var total = monthTxs
@@ -950,7 +943,7 @@ public class FinanceService : IFinanceService
                     .Sum(tx => ToBase(tx.Amount, tx.Currency, rates));
 
                 var goalPct = budget?.Goals.TryGetValue(cat, out var g) == true ? g : 0m;
-                var budgetAmt = effectiveIncome * goalPct / 100m;
+                var budgetAmt = totalIncome * goalPct / 100m;
                 var usedPct = budgetAmt > 0 ? Math.Min(total / budgetAmt * 100m, 999m) : 0m;
 
                 return new CategoryBreakdown

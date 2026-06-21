@@ -71,6 +71,7 @@ Aplicação de gestão doméstica. Módulos: **Pertences** (bens duráveis), **D
 - **`Models.Tasks.Task` vs `System.Threading.Tasks.Task`** — clash de nomes. Resolvido com `using TaskEntity = HomeManager.API.Models.Tasks.Task;` em `ApplicationDbContext`, `TaskService`, e qualquer ficheiro que importe ambos.
 - **Tasks GET é por data**, não paginado. `GET /api/tasks?householdId=&date=YYYY-MM-DD` — o Mobile usa carrossel de dias. Para `date == hoje`: vencidas → do dia → sem prazo → concluídas hoje (ordenação em memória pós-fetch).
 - **Tasks recorrência** — geração lazy no GET (`EnsureRecurrenceInstancesAsync`). `CompleteTask` nunca gera próxima instância; o GET do dia seguinte faz isso. Soft delete de recorrência via `is_active=false`.
+- **`FinanceBudget.Income` e `FinanceBudget.IncomeCurrency` — colunas órfãs** (tech debt): O dashboard calcula as alocações de categoria usando `totalIncome` das transações reais (não `budget.Income`). Os campos existem na DB e no modelo mas não são usados em nenhum cálculo desde 2026-06-21. `UpsertBudgetRequest` aceita-os por backward-compat mas ignora-os. Cleanup futuro: remover as colunas via migration + remover os campos do modelo + simplificar o request.
 
 ---
 

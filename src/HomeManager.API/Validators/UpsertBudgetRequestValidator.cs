@@ -15,13 +15,13 @@ public class UpsertBudgetRequestValidator : AbstractValidator<UpsertBudgetReques
 
         RuleFor(x => x.Income)
             .GreaterThanOrEqualTo(0)
-            .WithMessage("Income must be greater than or equal to 0");
+            .WithMessage("Income must be greater than or equal to 0")
+            .When(x => x.Income.HasValue);
 
         RuleFor(x => x.IncomeCurrency)
-            .NotEmpty()
-            .WithMessage("Income currency is required")
             .MaximumLength(10)
-            .WithMessage("Income currency cannot exceed 10 characters");
+            .WithMessage("Income currency cannot exceed 10 characters")
+            .When(x => x.IncomeCurrency != null);
 
         RuleFor(x => x.Goals)
             .NotNull()

@@ -5,6 +5,8 @@ using HomeManager.API.Models.DTOs;
 using HomeManager.API.Models.DTOs.Requests;
 using HomeManager.API.Models.Finance;
 using Microsoft.EntityFrameworkCore;
+using TaskEntity = HomeManager.API.Models.Tasks.Task;
+using TaskRecurrence = HomeManager.API.Models.Tasks.TaskRecurrence;
 
 namespace HomeManager.API.Services.Finance;
 
@@ -220,6 +222,18 @@ public class FinanceService : IFinanceService
             };
 
             m_context.FinanceAccounts.Add(account);
+
+            if (request.Type == "cc" && request.DueDay.HasValue)
+            {
+                var recurrenceId = await CreateCcPaymentRecurrenceAsync(
+                    householdId: request.HouseholdId,
+                    userId: userId,
+                    dueDay: request.DueDay.Value,
+                    accountName: request.Name
+                );
+                account.TaskRecurrenceId = recurrenceId;
+            }
+
             await m_context.SaveChangesAsync();
 
             m_logger.LogInformation("Account {AccountId} created for household {HouseholdId}", account.Id, request.HouseholdId);
@@ -243,6 +257,12 @@ public class FinanceService : IFinanceService
             if (!await HasAccessAsync(account.HouseholdId, userId))
                 return ApiResponse<AccountResponse>.ErrorResponse("Access denied");
 
+            bool wasCC = account.Type == "cc";
+            bool nameChanged = request.Name is not null && request.Name != account.Name;
+            bool dueDayChanged = request.DueDay.HasValue && request.DueDay != account.DueDay;
+            bool deactivating = request.IsActive.HasValue && !request.IsActive.Value && account.IsActive;
+            bool reactivating = request.IsActive.HasValue && request.IsActive.Value && !account.IsActive;
+
             if (request.Name is not null) account.Name = request.Name;
             if (request.Currency is not null) account.Currency = request.Currency;
             if (request.Type is not null) account.Type = request.Type;
@@ -252,6 +272,43 @@ public class FinanceService : IFinanceService
             if (request.Limit.HasValue) account.Limit = request.Limit;
             if (request.Balance.HasValue) account.Balance = request.Balance;
             if (request.IsActive.HasValue) account.IsActive = request.IsActive.Value;
+
+            bool isCC = account.Type == "cc";
+
+            // Sync task recurrence
+            if (account.TaskRecurrenceId.HasValue)
+            {
+                var recurrence = await m_context.TaskRecurrences.FindAsync(account.TaskRecurrenceId.Value);
+                if (recurrence != null)
+                {
+                    if (deactivating || !isCC)
+                    {
+                        recurrence.IsActive = false;
+                        if (!isCC) account.TaskRecurrenceId = null;
+                    }
+                    else
+                    {
+                        if (reactivating) recurrence.IsActive = true;
+                        if (dueDayChanged) recurrence.RecurrenceDay = request.DueDay;
+                        if (nameChanged)
+                        {
+                            var newTitle = $"Pagar fatura: {account.Name}";
+                            await UpdateFutureCcTaskTitlesAsync(recurrence.Id, newTitle);
+                        }
+                    }
+                }
+            }
+            else if (isCC && account.IsActive && account.DueDay.HasValue)
+            {
+                // CC que não tinha DueDay agora tem (ou passou de non-CC para CC)
+                var recurrenceId = await CreateCcPaymentRecurrenceAsync(
+                    householdId: account.HouseholdId,
+                    userId: userId,
+                    dueDay: account.DueDay.Value,
+                    accountName: account.Name
+                );
+                account.TaskRecurrenceId = recurrenceId;
+            }
 
             await m_context.SaveChangesAsync();
 
@@ -275,6 +332,13 @@ public class FinanceService : IFinanceService
 
             if (!await HasAccessAsync(account.HouseholdId, userId))
                 return ApiResponse<bool>.ErrorResponse("Access denied");
+
+            if (account.TaskRecurrenceId.HasValue)
+            {
+                var recurrence = await m_context.TaskRecurrences.FindAsync(account.TaskRecurrenceId.Value);
+                if (recurrence != null)
+                    recurrence.IsActive = false;
+            }
 
             m_context.FinanceAccounts.Remove(account);
             await m_context.SaveChangesAsync();
@@ -1029,5 +1093,66 @@ public class FinanceService : IFinanceService
             m_logger.LogError(ex, "Error getting dashboard for household {HouseholdId} month {Month}", householdId, month);
             return ApiResponse<DashboardResponse>.ErrorResponse($"Error: {ex.Message}");
         }
+    }
+
+    // ── CC payment recurrence helpers ─────────────────────────────────────────
+
+    private async Task<Guid> CreateCcPaymentRecurrenceAsync(Guid householdId, Guid userId, int dueDay, string accountName)
+    {
+        var recurrence = new TaskRecurrence
+        {
+            Id = Guid.NewGuid(),
+            HouseholdId = householdId,
+            Pattern = "monthly",
+            RecurrenceDay = dueDay,
+            IsActive = true,
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        m_context.TaskRecurrences.Add(recurrence);
+
+        var firstDate = NextMonthlyOccurrence(dueDay);
+        m_context.Tasks.Add(new TaskEntity
+        {
+            Id = Guid.NewGuid(),
+            HouseholdId = householdId,
+            RecurrenceId = recurrence.Id,
+            Title = $"Pagar fatura: {accountName}",
+            Description = $"Vencimento dia {dueDay}",
+            DueDate = firstDate.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc),
+            Status = "active",
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        });
+
+        return recurrence.Id;
+    }
+
+    private async Task UpdateFutureCcTaskTitlesAsync(Guid recurrenceId, string newTitle)
+    {
+        var todayDt = DateOnly.FromDateTime(DateTime.UtcNow).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var futureTasks = await m_context.Tasks
+            .Where(t => t.RecurrenceId == recurrenceId && t.DueDate >= todayDt && t.Status == "active")
+            .ToListAsync();
+
+        foreach (var t in futureTasks)
+        {
+            t.Title = newTitle;
+            t.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    private static DateOnly NextMonthlyOccurrence(int dayOfMonth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        for (int offset = 0; offset < 2; offset++)
+        {
+            var anchor = today.AddMonths(offset);
+            int clamped = Math.Min(dayOfMonth, DateTime.DaysInMonth(anchor.Year, anchor.Month));
+            var candidate = new DateOnly(anchor.Year, anchor.Month, clamped);
+            if (candidate >= today) return candidate;
+        }
+        return today;
     }
 }

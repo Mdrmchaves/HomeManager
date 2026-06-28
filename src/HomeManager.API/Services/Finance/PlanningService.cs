@@ -4,6 +4,8 @@ using HomeManager.API.Models.DTOs;
 using HomeManager.API.Models.DTOs.Requests;
 using HomeManager.API.Models.Finance;
 using Microsoft.EntityFrameworkCore;
+using TaskEntity = HomeManager.API.Models.Tasks.Task;
+using TaskRecurrence = HomeManager.API.Models.Tasks.TaskRecurrence;
 
 namespace HomeManager.API.Services.Finance;
 
@@ -86,6 +88,19 @@ public class PlanningService : IPlanningService
             };
 
             m_context.FinancePlanningItems.Add(item);
+
+            if (request.DayOfMonth.HasValue)
+            {
+                var recurrenceId = await CreatePaymentRecurrenceAsync(
+                    householdId: request.HouseholdId,
+                    userId: userId,
+                    dayOfMonth: request.DayOfMonth.Value,
+                    title: $"Pagar: {request.Description}",
+                    description: FormatPlanningDescription(request.Amount, request.Currency, request.DayOfMonth.Value)
+                );
+                item.TaskRecurrenceId = recurrenceId;
+            }
+
             await m_context.SaveChangesAsync();
 
             return ApiResponse<PlanningItemResponse>.SuccessResponse(PlanningItemResponse.FromEntity(item), "Item created");
@@ -108,6 +123,10 @@ public class PlanningService : IPlanningService
             if (!await HasAccessAsync(item.HouseholdId, userId))
                 return ApiResponse<PlanningItemResponse>.ErrorResponse("Access denied");
 
+            bool titleChanged = item.Description != request.Description || item.Amount != request.Amount || item.Currency != request.Currency;
+            bool dayChanged = item.DayOfMonth != request.DayOfMonth;
+            bool activeChanged = item.IsActive != request.IsActive;
+
             item.Description = request.Description;
             item.Amount = request.Amount;
             item.Currency = request.Currency;
@@ -117,6 +136,56 @@ public class PlanningService : IPlanningService
             item.TotalInstallments = request.Type == "installment" ? request.TotalInstallments : null;
             item.InstallmentsPaid = request.Type == "installment" ? request.InstallmentsPaid : 0;
             item.IsActive = request.IsActive;
+
+            // Sync task recurrence
+            if (item.TaskRecurrenceId.HasValue)
+            {
+                var recurrence = await m_context.TaskRecurrences.FindAsync(item.TaskRecurrenceId.Value);
+                if (recurrence != null)
+                {
+                    if (!request.IsActive)
+                    {
+                        // Item desactivado → desactiva recorrência
+                        recurrence.IsActive = false;
+                    }
+                    else if (!request.DayOfMonth.HasValue)
+                    {
+                        // Dia removido → desactiva recorrência
+                        recurrence.IsActive = false;
+                        item.TaskRecurrenceId = null;
+                    }
+                    else
+                    {
+                        // Reactivar se estava inactiva
+                        if (activeChanged && request.IsActive)
+                            recurrence.IsActive = true;
+
+                        // Actualiza dia se mudou
+                        if (dayChanged)
+                            recurrence.RecurrenceDay = request.DayOfMonth;
+
+                        // Actualiza título das instâncias futuras se título/valor mudou
+                        if (titleChanged)
+                        {
+                            var newTitle = $"Pagar: {request.Description}";
+                            var newDesc = FormatPlanningDescription(request.Amount, request.Currency, request.DayOfMonth!.Value);
+                            await UpdateFutureTaskTitlesAsync(recurrence.Id, newTitle, newDesc);
+                        }
+                    }
+                }
+            }
+            else if (request.IsActive && request.DayOfMonth.HasValue)
+            {
+                // Dia adicionado agora (item existia sem dia) → cria recorrência
+                var recurrenceId = await CreatePaymentRecurrenceAsync(
+                    householdId: item.HouseholdId,
+                    userId: userId,
+                    dayOfMonth: request.DayOfMonth.Value,
+                    title: $"Pagar: {request.Description}",
+                    description: FormatPlanningDescription(request.Amount, request.Currency, request.DayOfMonth.Value)
+                );
+                item.TaskRecurrenceId = recurrenceId;
+            }
 
             await m_context.SaveChangesAsync();
 
@@ -140,6 +209,14 @@ public class PlanningService : IPlanningService
             if (!await HasAccessAsync(item.HouseholdId, userId))
                 return ApiResponse<bool>.ErrorResponse("Access denied");
 
+            // Desactiva recorrência antes de apagar o item
+            if (item.TaskRecurrenceId.HasValue)
+            {
+                var recurrence = await m_context.TaskRecurrences.FindAsync(item.TaskRecurrenceId.Value);
+                if (recurrence != null)
+                    recurrence.IsActive = false;
+            }
+
             m_context.FinancePlanningItems.Remove(item);
             await m_context.SaveChangesAsync();
 
@@ -151,4 +228,73 @@ public class PlanningService : IPlanningService
             return ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}");
         }
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private async Task<Guid> CreatePaymentRecurrenceAsync(
+        Guid householdId, Guid userId, int dayOfMonth, string title, string description)
+    {
+        var recurrence = new TaskRecurrence
+        {
+            Id = Guid.NewGuid(),
+            HouseholdId = householdId,
+            Pattern = "monthly",
+            RecurrenceDay = dayOfMonth,
+            IsActive = true,
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        m_context.TaskRecurrences.Add(recurrence);
+
+        // Primeira instância na próxima ocorrência do dia no mês
+        var firstDate = NextOccurrence(dayOfMonth);
+        m_context.Tasks.Add(new TaskEntity
+        {
+            Id = Guid.NewGuid(),
+            HouseholdId = householdId,
+            RecurrenceId = recurrence.Id,
+            Title = title,
+            Description = description,
+            DueDate = firstDate.ToDateTime(new TimeOnly(12, 0), DateTimeKind.Utc),
+            Status = "active",
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        });
+
+        return recurrence.Id;
+    }
+
+    private async Task UpdateFutureTaskTitlesAsync(Guid recurrenceId, string newTitle, string newDescription)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var todayDt = today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+        var futureTasks = await m_context.Tasks
+            .Where(t => t.RecurrenceId == recurrenceId && t.DueDate >= todayDt && t.Status == "active")
+            .ToListAsync();
+
+        foreach (var t in futureTasks)
+        {
+            t.Title = newTitle;
+            t.Description = newDescription;
+            t.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    private static DateOnly NextOccurrence(int dayOfMonth)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        for (int offset = 0; offset < 2; offset++)
+        {
+            var anchor = today.AddMonths(offset);
+            int clamped = Math.Min(dayOfMonth, DateTime.DaysInMonth(anchor.Year, anchor.Month));
+            var candidate = new DateOnly(anchor.Year, anchor.Month, clamped);
+            if (candidate >= today) return candidate;
+        }
+        return today;
+    }
+
+    private static string FormatPlanningDescription(decimal amount, string currency, int dayOfMonth) =>
+        $"{amount:N2} {currency} — vence dia {dayOfMonth}";
 }

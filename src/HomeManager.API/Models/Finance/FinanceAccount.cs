@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using HomeManager.API.Models.Shared;
+using TaskRecurrence = HomeManager.API.Models.Tasks.TaskRecurrence;
 
 namespace HomeManager.API.Models.Finance;
 
@@ -50,11 +51,15 @@ public class FinanceAccount
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 
+    [Column("task_recurrence_id")]
+    public Guid? TaskRecurrenceId { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
     public Household Household { get; set; } = null!;
     public User? Owner { get; set; }
+    public TaskRecurrence? TaskRecurrence { get; set; }
     public ICollection<FinanceTransaction> Transactions { get; set; } = new List<FinanceTransaction>();
 }
